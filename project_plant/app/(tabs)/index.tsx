@@ -1,98 +1,83 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { router } from "expo-router";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useAuth } from "../../context/AuthContext";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+export default function Home() {
+  const { user } = useAuth();
+  const name = user?.displayName?.split(" ")[0] ?? "Explorador";
 
-export default function HomeScreen() {
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Text style={styles.greeting}>Hola, {name} 👋</Text>
+      <Text style={styles.subtitle}>¿Qué planta quieres identificar hoy?</Text>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      <TouchableOpacity
+        style={styles.heroBtn}
+        onPress={() => router.push("/(tabs)/camera")}
+      >
+        <Text style={styles.heroBtnIcon}>📷</Text>
+        <Text style={styles.heroBtnTitle}>Identificar planta</Text>
+        <Text style={styles.heroBtnSub}>
+          Toma una foto o elige de tu galería
+        </Text>
+      </TouchableOpacity>
+
+      <View style={styles.row}>
+        <TouchableOpacity
+          style={styles.card}
+          onPress={() => router.push("/(tabs)/garden")}
+        >
+          <Text style={styles.cardIcon}>🌱</Text>
+          <Text style={styles.cardTitle}>Mi Jardín</Text>
+          <Text style={styles.cardSub}>Ver mis plantas</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.card}
+          onPress={() => router.push("/(tabs)/explore")}
+        >
+          <Text style={styles.cardIcon}>🔍</Text>
+          <Text style={styles.cardTitle}>Explorar</Text>
+          <Text style={styles.cardSub}>Plantas populares</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: { flex: 1, backgroundColor: "#f0f7f4" },
+  content: { padding: 24, paddingTop: 64 },
+  greeting: { fontSize: 28, fontWeight: "800", color: "#1b4332" },
+  subtitle: { fontSize: 15, color: "#52796f", marginBottom: 28, marginTop: 4 },
+  heroBtn: {
+    backgroundColor: "#2d6a4f",
+    borderRadius: 20,
+    padding: 24,
+    alignItems: "center",
+    marginBottom: 20,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  heroBtnIcon: { fontSize: 48, marginBottom: 8 },
+  heroBtnTitle: { color: "#fff", fontSize: 20, fontWeight: "800" },
+  heroBtnSub: { color: "#95d5b2", fontSize: 13, marginTop: 4 },
+  row: { flexDirection: "row", gap: 12 },
+  card: {
+    flex: 1,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
+  cardIcon: { fontSize: 32, marginBottom: 8 },
+  cardTitle: { fontWeight: "700", color: "#1b4332", fontSize: 15 },
+  cardSub: { color: "#74c69d", fontSize: 12, marginTop: 2 },
 });
