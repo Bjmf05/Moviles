@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { PlantProfileInput } from "../../components/PlantProfileInput";
 import { useAuth } from "../../context/AuthContext";
 import { savePlant, uploadPlantImage } from "../../lib/plants";
 
@@ -33,6 +34,16 @@ export default function CameraScreen() {
   const [notes, setNotes] = useState("");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [plantProfile, setPlantProfile] = useState({
+    tipoPlanta: "",
+    frecuenciaRiego: "",
+    cantidadLuz: "",
+    nivelCuidado: "",
+  });
+
+  const handleProfileChange = (field: string, value: string) => {
+    setPlantProfile((p) => ({ ...p, [field]: value }));
+  };
 
   const pickImage = async (source: "camera" | "gallery") => {
     let res;
@@ -143,6 +154,7 @@ export default function CameraScreen() {
       await savePlant({
         userId: user.uid,
         ...result,
+        ...plantProfile,
         imageUri: imageUrl,
         notes,
         savedAt: new Date().toISOString(),
@@ -231,6 +243,14 @@ export default function CameraScreen() {
                 value={notes}
                 onChangeText={setNotes}
                 multiline
+              />
+
+              <PlantProfileInput
+                tipoPlanta={plantProfile.tipoPlanta}
+                frecuenciaRiego={plantProfile.frecuenciaRiego}
+                cantidadLuz={plantProfile.cantidadLuz}
+                nivelCuidado={plantProfile.nivelCuidado}
+                onChange={handleProfileChange}
               />
 
               <TouchableOpacity

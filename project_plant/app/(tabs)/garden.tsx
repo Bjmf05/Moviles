@@ -1,4 +1,7 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { doc, updateDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 import {
   Alert,
   FlatList,
@@ -7,23 +10,60 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { z } from "zod";
+import InputText from "../../components/InputText";
+import Toast from "../../components/Toast";
 import { useAuth } from "../../context/AuthContext";
-import {
-  deletePlant,
-  getUserPlants,
-  SavedPlant,
-  updatePlantNotes,
-} from "../../lib/plants";
+import { db } from "../../lib/firebase";
+import { deletePlant, getUserPlants, SavedPlant } from "../../lib/plants";
+
+const plantSchema = z.object({
+  nombreComun: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
+  nombreCientifico: z.string().min(2, "Requerido"),
+  descripcion: z
+    .string()
+    .min(10, "La descripción debe tener al menos 10 caracteres"),
+  notes: z.string().optional(),
+  "cuidados.riego": z.string().min(1, "Requerido"),
+  "cuidados.luz": z.string().min(1, "Requerido"),
+  "cuidados.temperatura": z.string().min(1, "Requerido"),
+});
+
+type PlantForm = z.infer<typeof plantSchema>;
 
 export default function Garden() {
   const { user } = useAuth();
   const [plants, setPlants] = useState<SavedPlant[]>([]);
   const [selected, setSelected] = useState<SavedPlant | null>(null);
-  const [notes, setNotes] = useState("");
+  const [, setNotes] = useState("");
+  const [toast, setToast] = useState<{
+    visible: boolean;
+    message: string;
+    type: "success" | "error" | "warning";
+  }>({
+    visible: false,
+    message: "",
+    type: "success",
+  });
+
+  const showToast = (
+    message: string,
+    type: "success" | "error" | "warning" = "success",
+  ) => {
+    setToast({ visible: true, message, type });
+  };
+
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { isSubmitting },
+  } = useForm<PlantForm>({
+    resolver: zodResolver(plantSchema),
+  });
 
   useEffect(() => {
     if (user) load();
@@ -48,11 +88,26 @@ export default function Garden() {
     ]);
   };
 
-  const handleSaveNotes = async () => {
+  const onSubmitEdit = async (data: PlantForm) => {
     if (!selected?.id) return;
-    await updatePlantNotes(selected.id, notes);
-    setSelected(null);
-    load();
+    try {
+      await updateDoc(doc(db, "plants", selected.id), {
+        nombreComun: data.nombreComun,
+        nombreCientifico: data.nombreCientifico,
+        descripcion: data.descripcion,
+        notes: data.notes ?? "",
+        cuidados: {
+          riego: data["cuidados.riego"],
+          luz: data["cuidados.luz"],
+          temperatura: data["cuidados.temperatura"],
+        },
+      });
+      showToast("✅ Planta actualizada correctamente");
+      setSelected(null);
+      load();
+    } catch {
+      showToast("No se pudo actualizar la planta", "error");
+    }
   };
 
   const stats = {
@@ -99,6 +154,15 @@ export default function Garden() {
               onPress={() => {
                 setSelected(item);
                 setNotes(item.notes);
+                reset({
+                  nombreComun: item.nombreComun,
+                  nombreCientifico: item.nombreCientifico,
+                  descripcion: item.descripcion,
+                  notes: item.notes,
+                  "cuidados.riego": item.cuidados.riego,
+                  "cuidados.luz": item.cuidados.luz,
+                  "cuidados.temperatura": item.cuidados.temperatura,
+                });
               }}
             >
               <Image source={{ uri: item.imageUri }} style={styles.thumb} />
@@ -144,33 +208,87 @@ export default function Garden() {
                 source={{ uri: selected.imageUri }}
                 style={styles.modalImage}
               />
-              <Text style={styles.modalName}>{selected.nombreComun}</Text>
-              <Text style={styles.modalSci}>{selected.nombreCientifico}</Text>
-              <Text style={styles.modalDesc}>{selected.descripcion}</Text>
-              <Text style={styles.modalSection}>📝 Mis notas</Text>
-              <TextInput
-                style={styles.notesInput}
-                value={notes}
-                onChangeText={setNotes}
-                multiline
-                placeholder="Escribe tus notas..."
+              <Text style={styles.modalName}>Editar planta</Text>
+
+              <InputText
+                control={control}
+                name="nombreComun"
+                label="Nombre común"
+                icon="🌿"
+                placeholder="Ej. Rosa"
               />
+              <InputText
+                control={control}
+                name="nombreCientifico"
+                label="Nombre científico"
+                icon="🔬"
+                placeholder="Ej. Rosa canina"
+              />
+              <InputText
+                control={control}
+                name="descripcion"
+                label="Descripción"
+                icon="📄"
+                placeholder="Descripción de la planta..."
+                inputProps={{ multiline: true, numberOfLines: 3 }}
+              />
+              <InputText
+                control={control}
+                name="cuidados.riego"
+                label="Riego"
+                icon="💧"
+                placeholder="Ej. Cada 3 días"
+              />
+              <InputText
+                control={control}
+                name="cuidados.luz"
+                label="Luz"
+                icon="☀️"
+                placeholder="Ej. Luz indirecta"
+              />
+              <InputText
+                control={control}
+                name="cuidados.temperatura"
+                label="Temperatura"
+                icon="🌡️"
+                placeholder="Ej. 15°C – 30°C"
+              />
+              <InputText
+                control={control}
+                name="notes"
+                label="Mis notas"
+                icon="📝"
+                placeholder="Notas personales..."
+                inputProps={{ multiline: true, numberOfLines: 2 }}
+              />
+
               <TouchableOpacity
-                style={styles.saveBtn}
-                onPress={handleSaveNotes}
+                style={[styles.saveBtn, isSubmitting && { opacity: 0.7 }]}
+                onPress={handleSubmit(onSubmitEdit)}
+                disabled={isSubmitting}
               >
-                <Text style={styles.saveBtnText}>Guardar notas</Text>
+                <Text style={styles.saveBtnText}>
+                  {isSubmitting ? "⏳ Guardando..." : "💾 Guardar cambios"}
+                </Text>
               </TouchableOpacity>
+
               <TouchableOpacity
                 style={styles.closeBtn}
                 onPress={() => setSelected(null)}
               >
-                <Text style={styles.closeBtnText}>Cerrar</Text>
+                <Text style={styles.closeBtnText}>Cancelar</Text>
               </TouchableOpacity>
             </>
           )}
         </ScrollView>
       </Modal>
+
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast((t) => ({ ...t, visible: false }))}
+      />
     </View>
   );
 }
@@ -236,36 +354,18 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 16,
   },
-  modalName: { fontSize: 26, fontWeight: "800", color: "#1b4332" },
-  modalSci: {
-    fontSize: 15,
-    fontStyle: "italic",
-    color: "#74c69d",
-    marginBottom: 8,
-  },
-  modalDesc: { fontSize: 14, color: "#555", lineHeight: 22, marginBottom: 16 },
-  modalSection: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#2d6a4f",
-    marginBottom: 8,
-  },
-  notesInput: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 14,
-    minHeight: 100,
-    textAlignVertical: "top",
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#d8f3dc",
+  modalName: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#1b4332",
+    marginBottom: 12,
   },
   saveBtn: {
     backgroundColor: "#2d6a4f",
     borderRadius: 14,
     padding: 16,
     alignItems: "center",
+    marginTop: 6,
     marginBottom: 10,
   },
   saveBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
@@ -275,6 +375,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#d8f3dc",
+    marginBottom: 12,
   },
   closeBtnText: { color: "#52796f", fontWeight: "600", fontSize: 15 },
 });
