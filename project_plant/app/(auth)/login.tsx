@@ -1,32 +1,81 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { router } from "expo-router";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { z } from "zod";
+import InputText from "../../components/InputText";
+import Toast from "../../components/Toast";
 import { useGoogleAuth } from "../../hooks/useGoogleAuth";
 import { login } from "../../lib/auth";
 
-export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const { authGoogle, request } = useGoogleAuth();
+type LoginForm = {
+  email: string;
+  password: string;
+};
 
-  const handleLogin = async () => {
-    if (!email || !password) return Alert.alert("Completa todos los campos");
+const loginSchema = z.object({
+  email: z.string().email("El correo no tiene un formato valido."),
+  password: z.string().min(1, "La contraseña es obligatoria."),
+});
+
+export default function Login() {
+  const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState<{
+    visible: boolean;
+    message: string;
+    type: "success" | "error" | "warning";
+  }>({
+    visible: false,
+    message: "",
+    type: "success",
+  });
+  const { authGoogle, request } = useGoogleAuth();
+  const { control, handleSubmit } = useForm<LoginForm>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: "", password: "" },
+  });
+
+  const showToast = (
+    message: string,
+    type: "success" | "error" | "warning" = "success",
+  ) => {
+    setToast({ visible: true, message, type });
+  };
+
+  const getLoginErrorMessage = (error: any) => {
+    const code = error?.code as string | undefined;
+    switch (code) {
+      case "auth/user-not-found":
+        return "No existe una cuenta con ese correo.";
+      case "auth/wrong-password":
+      case "auth/invalid-credential":
+        return "Correo o contraseña incorrectos.";
+      case "auth/invalid-email":
+        return "El correo no tiene un formato valido.";
+      case "auth/too-many-requests":
+        return "Demasiados intentos. Intenta de nuevo mas tarde.";
+      case "auth/network-request-failed":
+        return "Sin conexion. Revisa tu internet e intenta de nuevo.";
+      default:
+        return "No se pudo iniciar sesion. Intenta de nuevo.";
+    }
+  };
+
+  const handleLogin = async (data: LoginForm) => {
     setLoading(true);
     try {
-      await login(email, password);
+      await login(data.email, data.password);
       router.replace("../(tabs)/");
-    } catch {
-      Alert.alert("Error", "Correo o contraseña incorrectos");
+    } catch (error: any) {
+      showToast(getLoginErrorMessage(error), "error");
     } finally {
       setLoading(false);
     }
@@ -40,25 +89,26 @@ export default function Login() {
       <Text style={styles.logo}>🌿 PlantID</Text>
       <Text style={styles.title}>Bienvenido de nuevo</Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Correo electrónico"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
+      <InputText
+        control={control}
+        name="email"
+        label="Correo electrónico"
+        icon="✉️"
+        placeholder="correo@ejemplo.com"
+        inputProps={{ keyboardType: "email-address", autoCapitalize: "none" }}
       />
-      <TextInput
-        style={styles.input}
-        placeholder="Contraseña"
-        value={password}
-        onChangeText={setPassword}
+      <InputText
+        control={control}
+        name="password"
+        label="Contraseña"
+        icon="🔒"
+        placeholder="Tu contraseña"
         secureTextEntry
       />
 
       <TouchableOpacity
         style={styles.btn}
-        onPress={handleLogin}
+        onPress={handleSubmit(handleLogin)}
         disabled={loading}
       >
         <Text style={styles.btnText}>
@@ -85,6 +135,13 @@ export default function Login() {
           ¿No tienes cuenta? <Text style={styles.linkBold}>Regístrate</Text>
         </Text>
       </TouchableOpacity>
+
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast((t) => ({ ...t, visible: false }))}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -103,15 +160,6 @@ const styles = StyleSheet.create({
     color: "#1b4332",
     textAlign: "center",
     marginBottom: 32,
-  },
-  input: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 16,
-    fontSize: 15,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#d8f3dc",
   },
   btn: {
     backgroundColor: "#2d6a4f",
