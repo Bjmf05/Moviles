@@ -3,7 +3,6 @@ import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -12,19 +11,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { PlantProfileInput } from "../../components/PlantProfileInput";
+import Toast from "../../components/Toast";
 import { useAuth } from "../../context/AuthContext";
+import { identificarPlanta, PlantInfo } from "../../lib/plantService";
 import { savePlant, uploadPlantImage } from "../../lib/plants";
-
-const PLANT_ID_KEY = process.env.EXPO_PUBLIC_PLANT_ID_API_KEY || "";
-
-type PlantInfo = {
-  nombreComun: string;
-  nombreCientifico: string;
-  descripcion: string;
-  cuidados: { riego: string; luz: string; temperatura: string };
-  toxicidad: { esToxica: boolean; detalle: string };
-};
 
 export default function CameraScreen() {
   const { user } = useAuth();
@@ -34,15 +24,53 @@ export default function CameraScreen() {
   const [notes, setNotes] = useState("");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [plantProfile, setPlantProfile] = useState({
-    tipoPlanta: "",
-    frecuenciaRiego: "",
-    cantidadLuz: "",
-    nivelCuidado: "",
+  const [showForm, setShowForm] = useState(false);
+  const [nombrePersonal, setNombrePersonal] = useState("");
+  const [toast, setToast] = useState<{
+    visible: boolean;
+    message: string;
+    type: "success" | "error" | "warning";
+  }>({
+    visible: false,
+    message: "",
+    type: "success",
   });
 
-  const handleProfileChange = (field: string, value: string) => {
-    setPlantProfile((p) => ({ ...p, [field]: value }));
+  const showToast = (
+    message: string,
+    type: "success" | "error" | "warning" = "success",
+  ) => {
+    setToast({ visible: true, message, type });
+  };
+
+  const getNetworkMessage = () =>
+    "Sin conexión. Revisa tu internet e intenta de nuevo.";
+
+  const getAnalyzeErrorMessage = (error: unknown) => {
+    const message = error instanceof Error ? error.message : "";
+    if (message.toLowerCase().includes("network")) return getNetworkMessage();
+    if (message.toLowerCase().includes("plant.id")) {
+      return "No se pudo identificar la planta. Intenta con otra foto.";
+    }
+    return "No se pudo analizar la imagen. Intenta de nuevo.";
+  };
+
+  const getSaveErrorMessage = (error: unknown) => {
+    const message = error instanceof Error ? error.message : "";
+    if (message.toLowerCase().includes("network")) return getNetworkMessage();
+    if (message.toLowerCase().includes("storage")) {
+      return "No se pudo subir la foto. Intenta de nuevo.";
+    }
+    return "No se pudo guardar la planta. Intenta de nuevo.";
+  };
+
+  const handleCancel = () => {
+    setImage(null);
+    setResult(null);
+    setNotes("");
+    setSaved(false);
+    setSaving(false);
+    setLoading(false);
   };
 
   const pickImage = async (source: "camera" | "gallery") => {
@@ -50,7 +78,7 @@ export default function CameraScreen() {
     if (source === "camera") {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== "granted")
-        return Alert.alert("Se necesita permiso de cámara");
+        return showToast("Se necesita permiso de cámara", "warning");
       res = await ImagePicker.launchCameraAsync({ quality: 0.7 });
     } else {
       res = await ImagePicker.launchImageLibraryAsync({ quality: 0.7 });
@@ -68,79 +96,16 @@ export default function CameraScreen() {
   const analyzeImage = async (uri: string) => {
     setLoading(true);
     try {
-      // 1. Comprimir imagen
       const { base64 } = await ImageManipulator.manipulateAsync(
         uri,
         [{ resize: { width: 800 } }],
         { base64: true, format: ImageManipulator.SaveFormat.JPEG },
       );
-
-      const plantResponse = await fetch(
-        "https://api.plant.id/v3/identification?classification_level=species&details=common_names,description,watering,best_light_condition,toxicity",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Api-Key": PLANT_ID_KEY,
-          },
-          body: JSON.stringify({
-            images: [`data:image/jpeg;base64,${base64}`],
-          }),
-        },
-      );
-
-      const rawText = await plantResponse.text();
-      console.log("Plant.id response:", rawText);
-      console.log("Status:", plantResponse.status);
-
-      let plantData;
-      try {
-        plantData = JSON.parse(rawText);
-      } catch (error) {
-        console.error("Error parsing JSON:", error);
-      }
-      // 3. Verificar si encontró una planta
-      const isPlant = plantData.result?.is_plant?.binary;
-      if (!isPlant) {
-        setResult({
-          nombreComun: "No es una planta",
-          nombreCientifico: "",
-          descripcion: "No se detectó ninguna planta en la imagen.",
-          cuidados: { riego: "—", luz: "—", temperatura: "—" },
-          toxicidad: { esToxica: false, detalle: "—" },
-        });
-        return;
-      }
-
-      // 4. Tomar el resultado más probable
-      const best = plantData.result.classification.suggestions[0];
-      const commonName = best.details?.common_names?.[0] ?? best.name;
-      const description =
-        best.details?.description?.value ?? "Sin descripción disponible.";
-      const watering = best.details?.watering?.max
-        ? `Cada ${best.details.watering.max} días`
-        : "Moderado";
-      const sunlight = best.details?.best_light_condition ?? "Luz indirecta";
-      const tempMin = best.details?.best_watering ?? null;
-      const toxic = best.details?.toxicity ?? null;
-
-      setResult({
-        nombreComun: commonName,
-        nombreCientifico: best.name,
-        descripcion: description.slice(0, 200) + "...",
-        cuidados: {
-          riego: watering,
-          luz: sunlight,
-          temperatura: "15°C – 30°C",
-        },
-        toxicidad: {
-          esToxica: toxic ? true : false,
-          detalle: toxic ?? "Sin información de toxicidad.",
-        },
-      });
+      const plantInfo = await identificarPlanta(base64!);
+      setResult(plantInfo);
     } catch (e) {
       console.error(e);
-      Alert.alert("Error", "No se pudo analizar la imagen. Intenta de nuevo.");
+      showToast(getAnalyzeErrorMessage(e), "error");
     } finally {
       setLoading(false);
     }
@@ -154,16 +119,15 @@ export default function CameraScreen() {
       await savePlant({
         userId: user.uid,
         ...result,
-        ...plantProfile,
         imageUri: imageUrl,
         notes,
         savedAt: new Date().toISOString(),
       });
       setSaved(true);
-      Alert.alert("✅ Guardado", "Planta agregada a tu jardín");
+      showToast("Planta agregada a tu jardín", "success");
     } catch (e) {
       console.error(e);
-      Alert.alert("Error", "No se pudo guardar. Intenta de nuevo.");
+      showToast(getSaveErrorMessage(e), "error");
     } finally {
       setSaving(false);
     }
@@ -171,6 +135,12 @@ export default function CameraScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast((t) => ({ ...t, visible: false }))}
+      />
       <Text style={styles.title}>Identificar planta</Text>
 
       <View style={styles.buttons}>
@@ -210,11 +180,13 @@ export default function CameraScreen() {
               <Text style={styles.description}>{result.descripcion}</Text>
 
               <Text style={styles.section}>🌱 Cuidados</Text>
-              {[
-                ["💧", "Riego", result.cuidados.riego],
-                ["☀️", "Luz", result.cuidados.luz],
-                ["🌡️", "Temperatura", result.cuidados.temperatura],
-              ].map(([icon, label, val]) => (
+              {(
+                [
+                  ["💧", "Riego", result.cuidados.riego],
+                  ["☀️", "Luz", result.cuidados.luz],
+                  ["🌡️", "Temperatura", result.cuidados.temperatura],
+                ] as const
+              ).map(([icon, label, val]) => (
                 <View key={label} style={styles.infoRow}>
                   <Text style={styles.infoIcon}>{icon}</Text>
                   <View>
@@ -245,14 +217,6 @@ export default function CameraScreen() {
                 multiline
               />
 
-              <PlantProfileInput
-                tipoPlanta={plantProfile.tipoPlanta}
-                frecuenciaRiego={plantProfile.frecuenciaRiego}
-                cantidadLuz={plantProfile.cantidadLuz}
-                nivelCuidado={plantProfile.nivelCuidado}
-                onChange={handleProfileChange}
-              />
-
               <TouchableOpacity
                 style={[styles.saveBtn, saved && styles.savedBtn]}
                 onPress={handleSave}
@@ -266,6 +230,15 @@ export default function CameraScreen() {
                       : "💾 Guardar en Mi Jardín"}
                 </Text>
               </TouchableOpacity>
+
+              {!saving && (image || loading || result) && (
+                <TouchableOpacity
+                  style={[styles.saveBtn, styles.btnCancelAction]}
+                  onPress={handleCancel}
+                >
+                  <Text style={styles.saveBtnText}>✖️ Cancelar</Text>
+                </TouchableOpacity>
+              )}
             </>
           )}
         </View>
@@ -294,6 +267,7 @@ const styles = StyleSheet.create({
     minWidth: 120,
   },
   btnAlt: { backgroundColor: "#52796f" },
+  btnCancel: { backgroundColor: "#adb5bd" },
   btnIcon: { fontSize: 24, marginBottom: 4 },
   btnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
   image: { width: "100%", height: 220, borderRadius: 20, marginBottom: 20 },
@@ -365,5 +339,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   savedBtn: { backgroundColor: "#74c69d" },
+  btnCancelAction: { backgroundColor: "#adb5bd", marginTop: 10 },
   saveBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
 });

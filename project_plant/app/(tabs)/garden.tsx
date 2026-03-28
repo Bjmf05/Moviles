@@ -268,6 +268,14 @@ export default function Garden() {
     setToast({ visible: true, message, type });
   };
 
+  const getGardenErrorMessage = (error: unknown, fallback: string) => {
+    const message = error instanceof Error ? error.message : "";
+    if (message.toLowerCase().includes("network")) {
+      return "Sin conexión. Revisa tu internet e intenta de nuevo.";
+    }
+    return fallback;
+  };
+
   const {
     control,
     handleSubmit,
@@ -307,9 +315,19 @@ export default function Garden() {
         text: "Eliminar",
         style: "destructive",
         onPress: async () => {
-          await deletePlant(id);
-          load();
-          showToast("Planta eliminada");
+          try {
+            await deletePlant(id);
+            load();
+            showToast("Planta eliminada");
+          } catch (error) {
+            showToast(
+              getGardenErrorMessage(
+                error,
+                "No se pudo eliminar la planta. Intenta de nuevo.",
+              ),
+              "error",
+            );
+          }
         },
       },
     ]);
@@ -332,8 +350,14 @@ export default function Garden() {
       showToast("Planta actualizada correctamente");
       setSelected(null);
       load();
-    } catch {
-      showToast("No se pudo actualizar la planta", "error");
+    } catch (error) {
+      showToast(
+        getGardenErrorMessage(
+          error,
+          "No se pudo actualizar la planta. Intenta de nuevo.",
+        ),
+        "error",
+      );
     }
   };
 

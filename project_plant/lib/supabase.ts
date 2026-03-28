@@ -9,17 +9,36 @@ export async function uploadPlantImage(
   uri: string,
   userId: string,
 ): Promise<string> {
-  const response = await fetch(uri);
-  const blob = await response.blob();
-  const filename = `${userId}/${Date.now()}.jpg`;
+  try {
+    const response = await fetch(uri);
+    const arrayBuffer = await response.arrayBuffer();
+    const filename = `${userId}/${Date.now()}.jpg`;
 
-  const { error } = await supabase.storage
-    .from("plant-images")
-    .upload(filename, blob, { contentType: "image/jpeg", upsert: false });
+    console.log("📤 Subiendo imagen a Supabase...", filename);
 
-  if (error) throw error;
+    const { data, error } = await supabase.storage
+      .from("plant-images")
+      .upload(filename, arrayBuffer, {
+        contentType: "image/jpeg",
+        upsert: false,
+      });
 
-  const { data } = supabase.storage.from("plant-images").getPublicUrl(filename);
+    if (error) {
+      console.error("❌ Supabase error:", error);
+      throw error;
+    }
 
-  return data.publicUrl;
+    console.log("✅ Imagen subida:", data);
+
+    const { data: urlData } = supabase.storage
+      .from("plant-images")
+      .getPublicUrl(filename);
+
+    console.log("🔗 URL pública:", urlData.publicUrl);
+
+    return urlData.publicUrl;
+  } catch (e) {
+    console.error("❌ Error en uploadPlantImage:", e);
+    throw e;
+  }
 }
