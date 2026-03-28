@@ -1,24 +1,45 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Picker } from "@react-native-picker/picker";
 import { BlurView } from "expo-blur";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import {
   Alert,
   Animated,
-  Dimensions,
   Easing,
   Image,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
+  TouchableOpacity,
   View,
 } from "react-native";
+import { z } from "zod";
+import InputText from "../../components/InputText";
 import { useAuth } from "../../context/AuthContext";
 import { getUserProfile, logout, updateUserProfile } from "../../lib/auth";
 
-const { width, height } = Dimensions.get("window");
+type ProfileForm = {
+  name: string;
+  birthdate: string;
+  country: string;
+};
+
+const profileSchema = z.object({
+  name: z.string().min(1, "El nombre es obligatorio."),
+  birthdate: z
+    .string()
+    .min(1, "Selecciona tu fecha de nacimiento.")
+    .refine(
+      (value) => !Number.isNaN(new Date(value).getTime()),
+      "La fecha no es valida.",
+    ),
+  country: z.string().min(1, "El pais es obligatorio."),
+});
 
 // Avatar animado con efecto de halo
 const AnimatedAvatar = ({
@@ -50,7 +71,7 @@ const AnimatedAvatar = ({
         }),
       ]),
     ).start();
-  }, []);
+  }, [pulseAnim]);
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -130,7 +151,7 @@ const InfoField = ({
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [delay, fadeAnim, slideAnim]);
 
   return (
     <Animated.View
@@ -236,13 +257,36 @@ export default function Profile() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ name: "", birthdate: "", country: "" });
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [tempYear, setTempYear] = useState(2000);
+  const [tempMonth, setTempMonth] = useState(0);
+  const [tempDay, setTempDay] = useState(1);
+
+  const { control, handleSubmit, reset } = useForm<ProfileForm>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      name: "",
+      birthdate: "",
+      country: "",
+    },
+  });
 
   // Animaciones
   const headerFade = useRef(new Animated.Value(0)).current;
   const headerSlide = useRef(new Animated.Value(-20)).current;
   const cardFade = useRef(new Animated.Value(0)).current;
   const cardScale = useRef(new Animated.Value(0.95)).current;
+
+  const load = useCallback(async () => {
+    if (!user) return;
+    const data = await getUserProfile(user.uid);
+    setProfile(data);
+    reset({
+      name: data?.name ?? "",
+      birthdate: data?.birthdate ?? "",
+      country: data?.country ?? "",
+    });
+  }, [reset, user]);
 
   useEffect(() => {
     if (user) load();
@@ -274,22 +318,11 @@ export default function Profile() {
         }),
       ]),
     ]).start();
-  }, [user]);
+  }, [cardFade, cardScale, headerFade, headerSlide, load, user]);
 
-  const load = async () => {
+  const handleSave = async (data: ProfileForm) => {
     if (!user) return;
-    const data = await getUserProfile(user.uid);
-    setProfile(data);
-    setForm({
-      name: data?.name ?? "",
-      birthdate: data?.birthdate ?? "",
-      country: data?.country ?? "",
-    });
-  };
-
-  const handleSave = async () => {
-    if (!user) return;
-    await updateUserProfile(user.uid, form);
+    await updateUserProfile(user.uid, data);
     setEditing(false);
     load();
   };
@@ -307,6 +340,46 @@ export default function Profile() {
       { text: "Cancelar", style: "cancel" },
       { text: "Salir", style: "destructive", onPress: logout },
     ]);
+  };
+
+  const formatDate = (date: Date) =>
+    date.toLocaleDateString("es-ES", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+
+  const getDaysInMonth = (year: number, month: number) =>
+    new Date(year, month + 1, 0).getDate();
+
+  const getMonthStartOffset = (year: number, month: number) => {
+    const dayOfWeek = new Date(year, month, 1).getDay();
+    return dayOfWeek;
+  };
+
+  const monthLabels = [
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
+  ];
+
+  const years = Array.from({ length: 151 }, (_, i) => 2025 - i);
+  const weekDays = ["D", "L", "M", "M", "J", "V", "S"];
+
+  const getDisplayDate = (value?: string) => {
+    if (!value) return "";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return "";
+    return formatDate(parsed);
   };
 
   return (
@@ -375,38 +448,231 @@ export default function Profile() {
               {editing ? (
                 <>
                   <Text style={styles.cardTitle}>Editar perfil</Text>
-                  {[
-                    { label: "Nombre", key: "name", icon: "👤" },
-                    {
-                      label: "Fecha de nacimiento",
-                      key: "birthdate",
-                      icon: "🎂",
-                    },
-                    { label: "Pais", key: "country", icon: "🌍" },
-                  ].map((field) => (
-                    <View key={field.key} style={styles.inputContainer}>
-                      <Text style={styles.inputLabel}>
-                        {field.icon} {field.label}
-                      </Text>
-                      <TextInput
-                        style={styles.input}
-                        value={form[field.key as keyof typeof form]}
-                        onChangeText={(v) =>
-                          setForm((f) => ({ ...f, [field.key]: v }))
-                        }
-                        placeholder={`Ingresa tu ${field.label.toLowerCase()}`}
-                        placeholderTextColor="#999"
-                      />
-                    </View>
-                  ))}
+                  <InputText
+                    control={control}
+                    name="name"
+                    label="Nombre"
+                    icon="👤"
+                    placeholder="Ingresa tu nombre"
+                  />
+                  <Controller
+                    control={control}
+                    name="birthdate"
+                    render={({ field: { onChange, value }, fieldState }) => (
+                      <>
+                        <Text style={styles.dateLabel}>
+                          Fecha de nacimiento
+                        </Text>
+                        <TouchableOpacity
+                          style={styles.dateInput}
+                          onPress={() => {
+                            const baseDate = value
+                              ? new Date(value)
+                              : new Date(2000, 0, 1);
+                            const safeDate = Number.isNaN(baseDate.getTime())
+                              ? new Date(2000, 0, 1)
+                              : baseDate;
+                            setTempYear(safeDate.getFullYear());
+                            setTempMonth(safeDate.getMonth());
+                            setTempDay(safeDate.getDate());
+                            setShowDatePicker(true);
+                          }}
+                        >
+                          <Text style={styles.dateIcon}>📅</Text>
+                          <Text
+                            style={
+                              value ? styles.dateText : styles.datePlaceholder
+                            }
+                          >
+                            {value
+                              ? getDisplayDate(value)
+                              : "Selecciona una fecha"}
+                          </Text>
+                        </TouchableOpacity>
+                        {fieldState.error?.message ? (
+                          <Text style={styles.dateError}>
+                            {fieldState.error.message}
+                          </Text>
+                        ) : null}
+                        {showDatePicker && (
+                          <Modal
+                            transparent
+                            animationType="fade"
+                            visible={showDatePicker}
+                            onRequestClose={() => setShowDatePicker(false)}
+                          >
+                            <View style={styles.modalBackdrop}>
+                              <BlurView
+                                intensity={90}
+                                tint="light"
+                                style={styles.modalSheet}
+                              >
+                                <Text style={styles.modalTitle}>
+                                  Selecciona tu fecha de nacimiento
+                                </Text>
+                                <View style={styles.pickerRow}>
+                                  <Picker
+                                    style={styles.picker}
+                                    selectedValue={tempMonth}
+                                    onValueChange={(nextMonth) => {
+                                      const maxDay = getDaysInMonth(
+                                        tempYear,
+                                        nextMonth,
+                                      );
+                                      setTempMonth(nextMonth);
+                                      setTempDay((current) =>
+                                        current > maxDay ? maxDay : current,
+                                      );
+                                    }}
+                                  >
+                                    {monthLabels.map((label, index) => (
+                                      <Picker.Item
+                                        key={label}
+                                        label={label}
+                                        value={index}
+                                      />
+                                    ))}
+                                  </Picker>
+                                  <Picker
+                                    style={styles.picker}
+                                    selectedValue={tempYear}
+                                    onValueChange={(nextYear) => {
+                                      const maxDay = getDaysInMonth(
+                                        nextYear,
+                                        tempMonth,
+                                      );
+                                      setTempYear(nextYear);
+                                      setTempDay((current) =>
+                                        current > maxDay ? maxDay : current,
+                                      );
+                                    }}
+                                  >
+                                    {years.map((year) => (
+                                      <Picker.Item
+                                        key={year}
+                                        label={`${year}`}
+                                        value={year}
+                                      />
+                                    ))}
+                                  </Picker>
+                                </View>
+                                <View style={styles.calendarHeader}>
+                                  {weekDays.map((day, index) => (
+                                    <Text
+                                      key={`${day}-${index}`}
+                                      style={styles.calendarHeaderText}
+                                    >
+                                      {day}
+                                    </Text>
+                                  ))}
+                                </View>
+                                <View style={styles.calendarGrid}>
+                                  {Array.from({
+                                    length:
+                                      getMonthStartOffset(tempYear, tempMonth) +
+                                      getDaysInMonth(tempYear, tempMonth),
+                                  }).map((_, index) => {
+                                    const offset = getMonthStartOffset(
+                                      tempYear,
+                                      tempMonth,
+                                    );
+                                    const dayNumber = index - offset + 1;
+                                    if (dayNumber < 1) {
+                                      return (
+                                        <View
+                                          key={`empty-${index}`}
+                                          style={styles.dayCell}
+                                        />
+                                      );
+                                    }
+
+                                    const isSelected = dayNumber === tempDay;
+
+                                    return (
+                                      <TouchableOpacity
+                                        key={dayNumber}
+                                        style={[
+                                          styles.dayCell,
+                                          isSelected && styles.dayCellSelected,
+                                        ]}
+                                        onPress={() => setTempDay(dayNumber)}
+                                      >
+                                        <Text
+                                          style={[
+                                            styles.dayText,
+                                            isSelected &&
+                                              styles.dayTextSelected,
+                                          ]}
+                                        >
+                                          {dayNumber}
+                                        </Text>
+                                      </TouchableOpacity>
+                                    );
+                                  })}
+                                </View>
+                                <View style={styles.modalActions}>
+                                  <TouchableOpacity
+                                    style={styles.modalBtn}
+                                    onPress={() => setShowDatePicker(false)}
+                                  >
+                                    <Text style={styles.modalBtnText}>
+                                      Cancelar
+                                    </Text>
+                                  </TouchableOpacity>
+                                  <TouchableOpacity
+                                    style={[
+                                      styles.modalBtn,
+                                      styles.modalBtnPrimary,
+                                    ]}
+                                    onPress={() => {
+                                      const newDate = new Date(
+                                        tempYear,
+                                        tempMonth,
+                                        tempDay,
+                                      );
+                                      onChange(newDate.toISOString());
+                                      setShowDatePicker(false);
+                                    }}
+                                  >
+                                    <Text
+                                      style={[
+                                        styles.modalBtnText,
+                                        styles.modalBtnTextPrimary,
+                                      ]}
+                                    >
+                                      Confirmar
+                                    </Text>
+                                  </TouchableOpacity>
+                                </View>
+                              </BlurView>
+                            </View>
+                          </Modal>
+                        )}
+                      </>
+                    )}
+                  />
+                  <InputText
+                    control={control}
+                    name="country"
+                    label="Pais"
+                    icon="🌍"
+                    placeholder="Ingresa tu pais"
+                  />
                   <View style={styles.buttonGroup}>
                     <AnimatedButton
-                      onPress={handleSave}
+                      onPress={handleSubmit(handleSave)}
                       label="Guardar cambios"
                       variant="primary"
                     />
                     <AnimatedButton
-                      onPress={() => setEditing(false)}
+                      onPress={() => {
+                        reset({
+                          name: profile?.name ?? "",
+                          birthdate: profile?.birthdate ?? "",
+                          country: profile?.country ?? "",
+                        });
+                        setEditing(false);
+                      }}
                       label="Cancelar"
                       variant="secondary"
                     />
@@ -431,7 +697,7 @@ export default function Profile() {
                     <InfoField
                       icon="🎂"
                       label="Fecha de nacimiento"
-                      value={profile?.birthdate}
+                      value={getDisplayDate(profile?.birthdate)}
                       delay={160}
                     />
                     <InfoField
@@ -631,6 +897,129 @@ const styles = StyleSheet.create({
   fieldsContainer: {
     gap: 16,
     marginBottom: 20,
+  },
+  dateLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#52796f",
+    marginBottom: 6,
+    textTransform: "uppercase",
+  },
+  dateInput: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: "#d8f3dc",
+    marginBottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  dateIcon: {
+    fontSize: 18,
+  },
+  dateText: {
+    fontSize: 15,
+    color: "#1b4332",
+  },
+  datePlaceholder: {
+    fontSize: 15,
+    color: "#aaa",
+  },
+  dateError: {
+    fontSize: 12,
+    color: "#e63946",
+    marginTop: -10,
+    marginBottom: 12,
+    marginLeft: 4,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    backgroundColor: "rgba(247, 255, 244, 0.95)",
+    padding: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1b4332",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  pickerRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  picker: {
+    flex: 1,
+  },
+  calendarHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  calendarHeaderText: {
+    width: "14.285%",
+    textAlign: "center",
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#40916c",
+  },
+  calendarGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginBottom: 6,
+  },
+  dayCell: {
+    width: "14.285%",
+    aspectRatio: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 10,
+    marginBottom: 6,
+    backgroundColor: "rgba(240, 247, 244, 0.8)",
+  },
+  dayCellSelected: {
+    backgroundColor: "#2d6a4f",
+  },
+  dayText: {
+    fontSize: 14,
+    color: "#1b4332",
+    fontWeight: "600",
+  },
+  dayTextSelected: {
+    color: "#fff",
+    fontWeight: "800",
+  },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 12,
+    marginTop: 12,
+  },
+  modalBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: "rgba(240, 247, 244, 0.9)",
+  },
+  modalBtnPrimary: {
+    backgroundColor: "#2d6a4f",
+  },
+  modalBtnText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#2d6a4f",
+  },
+  modalBtnTextPrimary: {
+    color: "#fff",
   },
   field: {
     flexDirection: "row",
