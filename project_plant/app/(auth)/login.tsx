@@ -379,7 +379,7 @@ export default function Login() {
           ]}
         >
           <PulsingLogo />
-          <Text style={styles.appName}>PlantID</Text>
+          <Text style={styles.appName}>Plant</Text>
           <Text style={styles.tagline}>Descubre el mundo vegetal</Text>
         </Animated.View>
 

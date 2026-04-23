@@ -1,12 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LinearGradient } from "expo-linear-gradient";
+import { useFocusEffect } from "expo-router";
 import { doc, updateDoc } from "firebase/firestore";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
-  Alert,
   Animated,
-  Dimensions,
   Easing,
   FlatList,
   Image,
@@ -18,13 +17,11 @@ import {
   View,
 } from "react-native";
 import { z } from "zod";
-import InputText from "../../components/InputText";
-import Toast from "../../components/Toast";
+import { InputText } from "../../components/InputText";
+import { Toast } from "../../components/Toast";
 import { useAuth } from "../../context/AuthContext";
 import { db } from "../../lib/firebase";
 import { deletePlant, getUserPlants, SavedPlant } from "../../lib/plants";
-
-const { width, height } = Dimensions.get("window");
 
 const plantSchema = z.object({
   nombreComun: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
@@ -247,6 +244,8 @@ export default function Garden() {
   const { user } = useAuth();
   const [plants, setPlants] = useState<SavedPlant[]>([]);
   const [selected, setSelected] = useState<SavedPlant | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [toast, setToast] = useState<{
     visible: boolean;
     message: string;
@@ -285,6 +284,11 @@ export default function Garden() {
     resolver: zodResolver(plantSchema),
   });
 
+  const load = useCallback(async () => {
+    if (!user) return;
+    setPlants(await getUserPlants(user.uid));
+  }, [user]);
+
   useEffect(() => {
     if (user) load();
 
@@ -301,36 +305,37 @@ export default function Garden() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [user]);
+  }, [load, user]);
 
-  const load = async () => {
-    if (!user) return;
-    setPlants(await getUserPlants(user.uid));
-  };
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
 
   const handleDelete = (id: string) => {
-    Alert.alert("Eliminar", "Seguro que quieres eliminar esta planta?", [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Eliminar",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await deletePlant(id);
-            load();
-            showToast("Planta eliminada");
-          } catch (error) {
-            showToast(
-              getGardenErrorMessage(
-                error,
-                "No se pudo eliminar la planta. Intenta de nuevo.",
-              ),
-              "error",
-            );
-          }
-        },
-      },
-    ]);
+    setPendingDeleteId(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    const id = pendingDeleteId;
+    if (!id) return;
+    setShowDeleteConfirm(false);
+    setPendingDeleteId(null);
+    try {
+      await deletePlant(id);
+      load();
+      showToast("Planta eliminada");
+    } catch (error) {
+      showToast(
+        getGardenErrorMessage(
+          error,
+          "No se pudo eliminar la planta. Intenta de nuevo.",
+        ),
+        "error",
+      );
+    }
   };
 
   const onSubmitEdit = async (data: PlantForm) => {
@@ -564,6 +569,46 @@ export default function Garden() {
         type={toast.type}
         onClose={() => setToast((t) => ({ ...t, visible: false }))}
       />
+
+      <Modal
+        transparent
+        animationType="fade"
+        visible={showDeleteConfirm}
+        onRequestClose={() => setShowDeleteConfirm(false)}
+      >
+        <View style={styles.confirmBackdrop}>
+          <View style={styles.confirmCard}>
+            <LinearGradient
+              colors={["#e8f5e9", "#d8f3dc"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.confirmHeader}
+            >
+              <Text style={styles.confirmTitle}>Eliminar planta</Text>
+            </LinearGradient>
+            <Text style={styles.confirmMessage}>
+              Esta planta se quitara de tu jardin. Continuar?
+            </Text>
+            <View style={styles.confirmActions}>
+              <Pressable
+                style={[styles.confirmBtn, styles.confirmBtnNeutral]}
+                onPress={() => {
+                  setShowDeleteConfirm(false);
+                  setPendingDeleteId(null);
+                }}
+              >
+                <Text style={styles.confirmBtnTextNeutral}>Conservar</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.confirmBtn, styles.confirmBtnDanger]}
+                onPress={confirmDelete}
+              >
+                <Text style={styles.confirmBtnTextDanger}>Eliminar</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -783,5 +828,69 @@ const styles = StyleSheet.create({
     color: "#52796f",
     fontWeight: "600",
     fontSize: 15,
+  },
+  confirmBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
+    justifyContent: "center",
+    padding: 24,
+  },
+  confirmCard: {
+    borderRadius: 22,
+    backgroundColor: "#fff",
+    overflow: "hidden",
+    shadowColor: "#1b4332",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  confirmHeader: {
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  confirmTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#1b4332",
+  },
+  confirmMessage: {
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    paddingBottom: 18,
+    fontSize: 14,
+    color: "#52796f",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  confirmActions: {
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  confirmBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  confirmBtnNeutral: {
+    backgroundColor: "#f0f7f4",
+    borderWidth: 1.5,
+    borderColor: "#d8f3dc",
+  },
+  confirmBtnDanger: {
+    backgroundColor: "#ffe5e5",
+    borderWidth: 1.5,
+    borderColor: "#e63946",
+  },
+  confirmBtnTextNeutral: {
+    color: "#2d6a4f",
+    fontWeight: "700",
+  },
+  confirmBtnTextDanger: {
+    color: "#e63946",
+    fontWeight: "700",
   },
 });

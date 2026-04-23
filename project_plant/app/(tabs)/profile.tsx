@@ -1,12 +1,13 @@
+import { useCamera } from "@/hooks/useCamera";
+import { uploadPlantImage } from "@/lib/plants";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Picker } from "@react-native-picker/picker";
 import { BlurView } from "expo-blur";
-import * as ImagePicker from "expo-image-picker";
+import { CameraView } from "expo-camera";
 import { LinearGradient } from "expo-linear-gradient";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
-  Alert,
   Animated,
   Easing,
   Image,
@@ -19,10 +20,10 @@ import {
   View,
 } from "react-native";
 import { z } from "zod";
-import InputText from "../../components/InputText";
+import { InputText } from "../../components/InputText";
+import { Toast } from "../../components/Toast";
 import { useAuth } from "../../context/AuthContext";
 import { getUserProfile, logout, updateUserProfile } from "../../lib/auth";
-
 type ProfileForm = {
   name: string;
   birthdate: string;
@@ -38,7 +39,7 @@ const profileSchema = z.object({
       (value) => !Number.isNaN(new Date(value).getTime()),
       "La fecha no es valida.",
     ),
-  country: z.string().min(1, "El pais es obligatorio."),
+  country: z.string().min(1, "El país es obligatorio."),
 });
 
 // Avatar animado con efecto de halo
@@ -261,6 +262,16 @@ export default function Profile() {
   const [tempYear, setTempYear] = useState(2000);
   const [tempMonth, setTempMonth] = useState(0);
   const [tempDay, setTempDay] = useState(1);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [toast, setToast] = useState<{
+    visible: boolean;
+    message: string;
+    type: "success" | "error" | "warning";
+  }>({
+    visible: false,
+    message: "",
+    type: "success",
+  });
 
   const { control, handleSubmit, reset } = useForm<ProfileForm>({
     resolver: zodResolver(profileSchema),
@@ -287,6 +298,13 @@ export default function Profile() {
       country: data?.country ?? "",
     });
   }, [reset, user]);
+
+  const showToast = (
+    message: string,
+    type: "success" | "error" | "warning" = "success",
+  ) => {
+    setToast({ visible: true, message, type });
+  };
 
   useEffect(() => {
     if (user) load();
@@ -322,24 +340,58 @@ export default function Profile() {
 
   const handleSave = async (data: ProfileForm) => {
     if (!user) return;
-    await updateUserProfile(user.uid, data);
-    setEditing(false);
-    load();
+    try {
+      await updateUserProfile(user.uid, data);
+      setEditing(false);
+      showToast("Perfil actualizado correctamente.");
+      load();
+    } catch {
+      showToast("No se pudo guardar el perfil. Intenta de nuevo.", "error");
+    }
   };
+  const {
+    cameraRef,
+    requestCameraPermission,
+    takePhoto,
+    facing,
+    flashMode,
+    toggleFacing,
+    toggleFlash,
+  } = useCamera({ requestOnMount: false });
+
+  const [showCamera, setShowCamera] = useState(false);
 
   const handlePhoto = async () => {
-    const res = await ImagePicker.launchImageLibraryAsync({ quality: 0.7 });
-    if (!res.canceled && user) {
-      await updateUserProfile(user.uid, { photoURL: res.assets[0].uri });
+    const granted = await requestCameraPermission();
+    if (!granted) {
+      showToast("Necesitas permitir el acceso a la cámara.", "warning");
+      return;
+    }
+    setShowCamera(true);
+  };
+
+  const handleCapture = async () => {
+    if (!user) return;
+    const photo = await takePhoto();
+    if (!photo) return;
+    try {
+      const publicUrl = await uploadPlantImage(photo.uri, user.uid);
+      await updateUserProfile(user.uid, { photoURL: publicUrl });
+      showToast("Foto de perfil actualizada.");
+      setShowCamera(false);
       load();
+    } catch {
+      showToast("No se pudo actualizar la foto. Intenta de nuevo.", "error");
     }
   };
 
   const handleLogout = () => {
-    Alert.alert("Cerrar sesion", "Seguro que quieres salir?", [
-      { text: "Cancelar", style: "cancel" },
-      { text: "Salir", style: "destructive", onPress: logout },
-    ]);
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
+    setShowLogoutConfirm(false);
+    logout();
   };
 
   const formatDate = (date: Date) =>
@@ -737,10 +789,84 @@ export default function Profile() {
 
         {/* Version de la app */}
         <View style={styles.versionContainer}>
-          <Text style={styles.versionText}>PlantID v1.0.0</Text>
+          <Text style={styles.versionText}>Plant v1.0.0</Text>
           <Text style={styles.footerPlants}>🌿 🌸 🌺 🍀 🌻</Text>
         </View>
       </ScrollView>
+
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast((t) => ({ ...t, visible: false }))}
+      />
+      <Modal
+        visible={showCamera}
+        animationType="slide"
+        onRequestClose={() => setShowCamera(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: "#000" }}>
+          <CameraView
+            ref={cameraRef}
+            style={{ flex: 1 }}
+            facing={facing}
+            flash={flashMode}
+          />
+          <View
+            style={{
+              position: "absolute",
+              bottom: 24,
+              left: 0,
+              right: 0,
+              flexDirection: "row",
+              justifyContent: "space-around",
+              paddingHorizontal: 24,
+            }}
+          >
+            <Pressable onPress={toggleFacing}>
+              <Text style={{ color: "#fff", fontSize: 16 }}>Camara</Text>
+            </Pressable>
+            <Pressable onPress={handleCapture}>
+              <Text style={{ color: "#fff", fontSize: 16 }}>Capturar</Text>
+            </Pressable>
+            <Pressable onPress={toggleFlash}>
+              <Text style={{ color: "#fff", fontSize: 16 }}>Flash</Text>
+            </Pressable>
+            <Pressable onPress={() => setShowCamera(false)}>
+              <Text style={{ color: "#fff", fontSize: 16 }}>Cerrar</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        transparent
+        animationType="fade"
+        visible={showLogoutConfirm}
+        onRequestClose={() => setShowLogoutConfirm(false)}
+      >
+        <View style={styles.confirmBackdrop}>
+          <BlurView intensity={90} tint="light" style={styles.confirmCard}>
+            <Text style={styles.confirmTitle}>Hasta pronto</Text>
+            <Text style={styles.confirmMessage}>
+              Tu jardin se queda a salvo. Quieres salir por ahora?
+            </Text>
+            <View style={styles.confirmActions}>
+              <Pressable
+                style={[styles.confirmBtn, styles.confirmBtnNeutral]}
+                onPress={() => setShowLogoutConfirm(false)}
+              >
+                <Text style={styles.confirmBtnTextNeutral}>Quedarme</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.confirmBtn, styles.confirmBtnDanger]}
+                onPress={confirmLogout}
+              >
+                <Text style={styles.confirmBtnTextDanger}>Salir</Text>
+              </Pressable>
+            </View>
+          </BlurView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -944,6 +1070,60 @@ const styles = StyleSheet.create({
     padding: 20,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+  },
+  confirmBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
+    justifyContent: "center",
+    padding: 24,
+  },
+  confirmCard: {
+    borderRadius: 22,
+    padding: 20,
+    overflow: "hidden",
+    backgroundColor: "rgba(247, 255, 244, 0.92)",
+  },
+  confirmTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#1b4332",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  confirmMessage: {
+    fontSize: 14,
+    color: "#52796f",
+    textAlign: "center",
+    marginBottom: 18,
+    lineHeight: 20,
+  },
+  confirmActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  confirmBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  confirmBtnNeutral: {
+    backgroundColor: "#f0f7f4",
+    borderWidth: 1.5,
+    borderColor: "#d8f3dc",
+  },
+  confirmBtnDanger: {
+    backgroundColor: "#ffe5e5",
+    borderWidth: 1.5,
+    borderColor: "#e63946",
+  },
+  confirmBtnTextNeutral: {
+    color: "#2d6a4f",
+    fontWeight: "700",
+  },
+  confirmBtnTextDanger: {
+    color: "#e63946",
+    fontWeight: "700",
   },
   modalTitle: {
     fontSize: 18,

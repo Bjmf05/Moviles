@@ -14,7 +14,7 @@ export async function uploadPlantImage(
     const arrayBuffer = await response.arrayBuffer();
     const filename = `${userId}/${Date.now()}.jpg`;
 
-    console.log("📤 Subiendo imagen a Supabase...", filename);
+    console.log("Subiendo imagen a Supabase...", filename);
 
     const { data, error } = await supabase.storage
       .from("plant-images")
@@ -24,11 +24,11 @@ export async function uploadPlantImage(
       });
 
     if (error) {
-      console.error("❌ Supabase error:", error);
+      console.error("Supabase error:", error);
       throw error;
     }
 
-    console.log("✅ Imagen subida:", data);
+    console.log("Imagen subida:", data);
 
     const { data: urlData } = supabase.storage
       .from("plant-images")
@@ -38,7 +38,7 @@ export async function uploadPlantImage(
 
     return urlData.publicUrl;
   } catch (e) {
-    console.error("❌ Error en uploadPlantImage:", e);
+    console.error("Supabase error:", e);
     throw e;
   }
 }
