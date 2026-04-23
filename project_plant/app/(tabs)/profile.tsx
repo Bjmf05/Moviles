@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Picker } from "@react-native-picker/picker";
 import { BlurView } from "expo-blur";
 import { CameraView } from "expo-camera";
+import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -262,6 +263,10 @@ export default function Profile() {
   const [tempYear, setTempYear] = useState(2000);
   const [tempMonth, setTempMonth] = useState(0);
   const [tempDay, setTempDay] = useState(1);
+  const [showCameraOptions, setShowCameraOptions] = useState(false);
+  const [showProfilePhoto, setShowProfilePhoto] = useState(false);
+  const [showPhotoPreview, setShowPhotoPreview] = useState(false);
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [toast, setToast] = useState<{
     visible: boolean;
@@ -370,19 +375,48 @@ export default function Profile() {
     setShowCamera(true);
   };
 
+  const handleAvatarPress = () => {
+    setShowCameraOptions(true);
+  };
+
   const handleCapture = async () => {
-    if (!user) return;
     const photo = await takePhoto();
     if (!photo) return;
+    setCapturedPhoto(photo.uri);
+    setShowPhotoPreview(true);
+    setShowCamera(false);
+  };
+
+  const handleConfirmPhoto = async () => {
+    if (!user || !capturedPhoto) return;
     try {
-      const publicUrl = await uploadPlantImage(photo.uri, user.uid);
+      const publicUrl = await uploadPlantImage(capturedPhoto, user.uid);
       await updateUserProfile(user.uid, { photoURL: publicUrl });
       showToast("Foto de perfil actualizada.");
-      setShowCamera(false);
+      setShowPhotoPreview(false);
+      setCapturedPhoto(null);
       load();
     } catch {
       showToast("No se pudo actualizar la foto. Intenta de nuevo.", "error");
     }
+  };
+
+  const handleRetakePhoto = () => {
+    setShowPhotoPreview(false);
+    setCapturedPhoto(null);
+    setShowCamera(true);
+  };
+
+  const handlePickFromGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      showToast("Necesitas permitir el acceso a la galería.", "warning");
+      return;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({ quality: 0.8 });
+    if (res.canceled) return;
+    setCapturedPhoto(res.assets[0].uri);
+    setShowPhotoPreview(true);
   };
 
   const handleLogout = () => {
@@ -479,7 +513,7 @@ export default function Profile() {
           <AnimatedAvatar
             photoURL={profile?.photoURL}
             name={profile?.name}
-            onPress={handlePhoto}
+            onPress={handleAvatarPress}
           />
           <Text style={styles.userName}>{profile?.name ?? "Usuario"}</Text>
           <Text style={styles.userEmail}>{user?.email}</Text>
@@ -805,36 +839,130 @@ export default function Profile() {
         animationType="slide"
         onRequestClose={() => setShowCamera(false)}
       >
-        <View style={{ flex: 1, backgroundColor: "#000" }}>
+        <View style={styles.cameraModal}>
           <CameraView
             ref={cameraRef}
             style={{ flex: 1 }}
             facing={facing}
             flash={flashMode}
           />
-          <View
-            style={{
-              position: "absolute",
-              bottom: 24,
-              left: 0,
-              right: 0,
-              flexDirection: "row",
-              justifyContent: "space-around",
-              paddingHorizontal: 24,
-            }}
-          >
-            <Pressable onPress={toggleFacing}>
-              <Text style={{ color: "#fff", fontSize: 16 }}>Camara</Text>
-            </Pressable>
-            <Pressable onPress={handleCapture}>
-              <Text style={{ color: "#fff", fontSize: 16 }}>Capturar</Text>
-            </Pressable>
-            <Pressable onPress={toggleFlash}>
-              <Text style={{ color: "#fff", fontSize: 16 }}>Flash</Text>
-            </Pressable>
+          <LinearGradient
+            colors={["rgba(0,0,0,0.65)", "rgba(0,0,0,0)"]}
+            style={styles.cameraOverlayTop}
+            pointerEvents="none"
+          />
+          <LinearGradient
+            colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.65)"]}
+            style={styles.cameraOverlayBottom}
+            pointerEvents="none"
+          />
+          <View style={styles.cameraTopBar}>
             <Pressable onPress={() => setShowCamera(false)}>
-              <Text style={{ color: "#fff", fontSize: 16 }}>Cerrar</Text>
+              <Text style={styles.cameraIconText}>✕</Text>
             </Pressable>
+            <Text style={styles.cameraTitle}>Foto de perfil</Text>
+            <Pressable onPress={toggleFlash}>
+              <Text
+                style={[
+                  styles.cameraIconText,
+                  flashMode !== "off" && styles.cameraIconActive,
+                ]}
+              >
+                ⚡
+              </Text>
+            </Pressable>
+          </View>
+          <View style={styles.cameraBottomBar}>
+            <Pressable onPress={toggleFacing}>
+              <Text style={styles.cameraIconText}>🔄</Text>
+            </Pressable>
+            <Pressable onPress={handleCapture} style={styles.shutterOuter}>
+              <View style={styles.shutterInner} />
+            </Pressable>
+            <Pressable onPress={handlePickFromGallery}>
+              <Text style={styles.cameraIconText}>🖼️</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        transparent
+        animationType="fade"
+        visible={showCameraOptions}
+        onRequestClose={() => setShowCameraOptions(false)}
+      >
+        <View style={styles.actionSheetBackdrop}>
+          <BlurView intensity={80} tint="light" style={styles.actionSheet}>
+            <Text style={styles.actionSheetTitle}>Foto de perfil</Text>
+            {profile?.photoURL ? (
+              <TouchableOpacity
+                style={styles.actionSheetBtn}
+                onPress={() => {
+                  setShowCameraOptions(false);
+                  setShowProfilePhoto(true);
+                }}
+              >
+                <Text style={styles.actionSheetText}>Ver foto</Text>
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity
+              style={styles.actionSheetBtn}
+              onPress={() => {
+                setShowCameraOptions(false);
+                handlePhoto();
+              }}
+            >
+              <Text style={styles.actionSheetText}>Abrir cámara</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionSheetBtn, styles.actionSheetBtnMuted]}
+              onPress={() => setShowCameraOptions(false)}
+            >
+              <Text style={styles.actionSheetTextMuted}>Cancelar</Text>
+            </TouchableOpacity>
+          </BlurView>
+        </View>
+      </Modal>
+      <Modal
+        visible={showPhotoPreview}
+        animationType="fade"
+        onRequestClose={() => setShowPhotoPreview(false)}
+      >
+        <View style={styles.previewModal}>
+          <Image source={{ uri: capturedPhoto ?? "" }} style={styles.preview} />
+          <View style={styles.previewActions}>
+            <TouchableOpacity
+              style={[styles.previewBtn, styles.previewBtnSecondary]}
+              onPress={handleRetakePhoto}
+            >
+              <Text style={styles.previewBtnTextSecondary}>Repetir</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.previewBtn, styles.previewBtnPrimary]}
+              onPress={handleConfirmPhoto}
+            >
+              <Text style={styles.previewBtnTextPrimary}>Usar foto</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={showProfilePhoto}
+        animationType="fade"
+        onRequestClose={() => setShowProfilePhoto(false)}
+      >
+        <View style={styles.previewModal}>
+          <Image
+            source={{ uri: profile?.photoURL ?? "" }}
+            style={styles.preview}
+          />
+          <View style={styles.previewActions}>
+            <TouchableOpacity
+              style={[styles.previewBtn, styles.previewBtnSecondary]}
+              onPress={() => setShowProfilePhoto(false)}
+            >
+              <Text style={styles.previewBtnTextSecondary}>Cerrar</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -1319,5 +1447,142 @@ const styles = StyleSheet.create({
   footerPlants: {
     fontSize: 20,
     letterSpacing: 6,
+  },
+  cameraModal: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
+  cameraTopBar: {
+    position: "absolute",
+    top: 44,
+    left: 20,
+    right: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  cameraTitle: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  cameraBottomBar: {
+    position: "absolute",
+    bottom: 36,
+    left: 20,
+    right: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  cameraIconText: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  cameraIconActive: {
+    color: "#ffd166",
+  },
+  shutterOuter: {
+    width: 74,
+    height: 74,
+    borderRadius: 37,
+    borderWidth: 3,
+    borderColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  shutterInner: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: "#fff",
+  },
+  cameraOverlayTop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 140,
+  },
+  cameraOverlayBottom: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 180,
+  },
+  actionSheetBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
+    justifyContent: "flex-end",
+    padding: 16,
+  },
+  actionSheet: {
+    borderRadius: 20,
+    padding: 16,
+    overflow: "hidden",
+    backgroundColor: "rgba(255, 255, 255, 0.92)",
+    gap: 12,
+  },
+  actionSheetTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1b4332",
+    textAlign: "center",
+  },
+  actionSheetBtn: {
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: "#f0f7f4",
+    alignItems: "center",
+  },
+  actionSheetBtnMuted: {
+    backgroundColor: "#e9efec",
+  },
+  actionSheetText: {
+    color: "#1b4332",
+    fontWeight: "700",
+  },
+  actionSheetTextMuted: {
+    color: "#52796f",
+    fontWeight: "700",
+  },
+  previewModal: {
+    flex: 1,
+    backgroundColor: "#000",
+    justifyContent: "center",
+  },
+  preview: {
+    width: "100%",
+    height: "70%",
+    resizeMode: "contain",
+  },
+  previewActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    gap: 12,
+  },
+  previewBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  previewBtnPrimary: {
+    backgroundColor: "#2d6a4f",
+  },
+  previewBtnSecondary: {
+    backgroundColor: "#f0f7f4",
+  },
+  previewBtnTextPrimary: {
+    color: "#fff",
+    fontWeight: "700",
+  },
+  previewBtnTextSecondary: {
+    color: "#1b4332",
+    fontWeight: "700",
   },
 });

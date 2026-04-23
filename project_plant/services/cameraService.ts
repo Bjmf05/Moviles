@@ -50,7 +50,7 @@ const CameraService = {
   },
 
   cycleFlashMode(current: FlashMode): FlashMode {
-    const modes: FlashMode[] = ["off", "on", "auto"];
+    const modes: FlashMode[] = ["off", "auto", "on"];
     const index = modes.indexOf(current);
     return modes[(index + 1) % modes.length];
   },
