@@ -1110,9 +1110,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  cameraIconText: {
-    fontSize: 16,
-  },
   userName: {
     fontSize: 24,
     fontWeight: "700",
