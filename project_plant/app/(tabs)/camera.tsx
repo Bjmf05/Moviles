@@ -1,9 +1,14 @@
+import { CameraView } from "expo-camera";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
-import { useState } from "react";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,21 +16,35 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import Toast from "../../components/Toast";
+import { Toast } from "../../components/Toast";
 import { useAuth } from "../../context/AuthContext";
+import { useCamera } from "../../hooks/useCamera";
 import { identificarPlanta, PlantInfo } from "../../lib/plantService";
 import { savePlant, uploadPlantImage } from "../../lib/plants";
 
 export default function CameraScreen() {
+  const router = useRouter();
   const { user } = useAuth();
+  const initializedRef = useRef(false);
+  const {
+    cameraRef,
+    requestCameraPermission,
+    takePhoto,
+    facing,
+    flashMode,
+    toggleFacing,
+    toggleFlash,
+  } = useCamera({ requestOnMount: false });
+
   const [image, setImage] = useState<string | null>(null);
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [showCamera, setShowCamera] = useState(true);
+  const [showPhotoPreview, setShowPhotoPreview] = useState(false);
+  const [showPlantModal, setShowPlantModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PlantInfo | null>(null);
   const [notes, setNotes] = useState("");
-  const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [nombrePersonal, setNombrePersonal] = useState("");
   const [toast, setToast] = useState<{
     visible: boolean;
     message: string;
@@ -64,37 +83,71 @@ export default function CameraScreen() {
     return "No se pudo guardar la planta. Intenta de nuevo.";
   };
 
-  const handleCancel = () => {
+  const resetCaptureFlow = () => {
     setImage(null);
+    setCapturedPhoto(null);
     setResult(null);
     setNotes("");
-    setSaved(false);
     setSaving(false);
     setLoading(false);
+    setShowPhotoPreview(false);
+    setShowPlantModal(false);
+    setShowCamera(true);
   };
 
-  const pickImage = async (source: "camera" | "gallery") => {
-    let res;
-    if (source === "camera") {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== "granted")
-        return showToast("Se necesita permiso de cámara", "warning");
-      res = await ImagePicker.launchCameraAsync({ quality: 0.7 });
-    } else {
-      res = await ImagePicker.launchImageLibraryAsync({ quality: 0.7 });
+  useEffect(() => {
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+
+    const initCamera = async () => {
+      const granted = await requestCameraPermission();
+      if (!granted) {
+        showToast("Se necesita permiso de cámara", "warning");
+        setShowCamera(false);
+        return;
+      }
+      setShowCamera(true);
+    };
+    initCamera();
+  }, [requestCameraPermission]);
+
+  const handleCapture = async () => {
+    const photo = await takePhoto({ quality: 0.7 });
+    if (!photo) return;
+    setCapturedPhoto(photo.uri);
+    setShowPhotoPreview(true);
+    setShowCamera(false);
+  };
+
+  const handlePickFromGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      showToast("Se necesita permiso de galería", "warning");
+      return;
     }
-    if (!res.canceled) {
-      const uri = res.assets[0].uri;
-      setImage(uri);
-      setResult(null);
-      setSaved(false);
-      setNotes("");
-      analyzeImage(uri);
-    }
+    const res = await ImagePicker.launchImageLibraryAsync({ quality: 0.7 });
+    if (res.canceled) return;
+    setCapturedPhoto(res.assets[0].uri);
+    setShowPhotoPreview(true);
+    setShowCamera(false);
+  };
+
+  const handleRetakePhoto = () => {
+    setCapturedPhoto(null);
+    setShowPhotoPreview(false);
+    setShowCamera(true);
+  };
+
+  const handleConfirmPhoto = async () => {
+    if (!capturedPhoto) return;
+    setImage(capturedPhoto);
+    setShowPhotoPreview(false);
+    await analyzeImage(capturedPhoto);
   };
 
   const analyzeImage = async (uri: string) => {
     setLoading(true);
+    setResult(null);
     try {
       const { base64 } = await ImageManipulator.manipulateAsync(
         uri,
@@ -103,9 +156,11 @@ export default function CameraScreen() {
       );
       const plantInfo = await identificarPlanta(base64!);
       setResult(plantInfo);
+      setShowPlantModal(true);
     } catch (e) {
       console.error(e);
       showToast(getAnalyzeErrorMessage(e), "error");
+      resetCaptureFlow();
     } finally {
       setLoading(false);
     }
@@ -123,8 +178,10 @@ export default function CameraScreen() {
         notes,
         savedAt: new Date().toISOString(),
       });
-      setSaved(true);
       showToast("Planta agregada a tu jardín", "success");
+      setShowPlantModal(false);
+      resetCaptureFlow();
+      router.push("/(tabs)/garden");
     } catch (e) {
       console.error(e);
       showToast(getSaveErrorMessage(e), "error");
@@ -133,122 +190,215 @@ export default function CameraScreen() {
     }
   };
 
+  const canSave = !!result && result.nombreComun !== "No es una planta";
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <View style={styles.container}>
       <Toast
         visible={toast.visible}
         message={toast.message}
         type={toast.type}
         onClose={() => setToast((t) => ({ ...t, visible: false }))}
       />
-      <Text style={styles.title}>Identificar planta</Text>
 
-      <View style={styles.buttons}>
-        <TouchableOpacity
-          style={styles.btn}
-          onPress={() => pickImage("camera")}
-        >
-          <Text style={styles.btnIcon}>📷</Text>
-          <Text style={styles.btnText}>Cámara</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.btn, styles.btnAlt]}
-          onPress={() => pickImage("gallery")}
-        >
-          <Text style={styles.btnIcon}>🖼️</Text>
-          <Text style={styles.btnText}>Galería</Text>
-        </TouchableOpacity>
-      </View>
+      {showCamera ? (
+        <View style={styles.cameraModal}>
+          <CameraView
+            ref={cameraRef}
+            style={{ flex: 1 }}
+            facing={facing}
+            flash={flashMode}
+          />
+          <LinearGradient
+            colors={["rgba(0,0,0,0.65)", "rgba(0,0,0,0)"]}
+            style={styles.cameraOverlayTop}
+            pointerEvents="none"
+          />
+          <LinearGradient
+            colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.65)"]}
+            style={styles.cameraOverlayBottom}
+            pointerEvents="none"
+          />
 
-      {image && <Image source={{ uri: image }} style={styles.image} />}
-
-      {loading && (
-        <View style={styles.loadingBox}>
-          <ActivityIndicator size="large" color="#2d6a4f" />
-          <Text style={styles.loadingText}>Identificando planta...</Text>
-        </View>
-      )}
-
-      {result && !loading && (
-        <View style={styles.card}>
-          {result.nombreComun === "No es una planta" ? (
-            <Text style={styles.noPlant}>🤔 No se detectó ninguna planta</Text>
-          ) : (
-            <>
-              <Text style={styles.plantName}>{result.nombreComun}</Text>
-              <Text style={styles.scientific}>{result.nombreCientifico}</Text>
-              <Text style={styles.description}>{result.descripcion}</Text>
-
-              <Text style={styles.section}>🌱 Cuidados</Text>
-              {(
-                [
-                  ["💧", "Riego", result.cuidados.riego],
-                  ["☀️", "Luz", result.cuidados.luz],
-                  ["🌡️", "Temperatura", result.cuidados.temperatura],
-                ] as const
-              ).map(([icon, label, val]) => (
-                <View key={label} style={styles.infoRow}>
-                  <Text style={styles.infoIcon}>{icon}</Text>
-                  <View>
-                    <Text style={styles.infoLabel}>{label}</Text>
-                    <Text style={styles.infoValue}>{val}</Text>
-                  </View>
-                </View>
-              ))}
-
-              <View
+          <View style={styles.cameraTopBar}>
+            <Text style={styles.cameraTitle}>Identificar planta</Text>
+            <Pressable onPress={toggleFlash}>
+              <Text
                 style={[
-                  styles.toxBox,
-                  result.toxicidad.esToxica ? styles.toxic : styles.safe,
+                  styles.cameraIconText,
+                  flashMode !== "off" && styles.cameraIconActive,
                 ]}
               >
-                <Text style={styles.toxTitle}>
-                  {result.toxicidad.esToxica ? "⚠️ Tóxica" : "✅ No tóxica"}
-                </Text>
-                <Text style={styles.toxDetail}>{result.toxicidad.detalle}</Text>
-              </View>
+                ⚡
+              </Text>
+            </Pressable>
+          </View>
 
-              <Text style={styles.section}>📝 Mis notas</Text>
-              <TextInput
-                style={styles.notesInput}
-                placeholder="Agrega notas sobre esta planta..."
-                value={notes}
-                onChangeText={setNotes}
-                multiline
-              />
+          <View style={styles.cameraBottomBar}>
+            <Pressable onPress={toggleFacing}>
+              <Text style={styles.cameraIconText}>🔄</Text>
+            </Pressable>
+            <Pressable onPress={handleCapture} style={styles.shutterOuter}>
+              <View style={styles.shutterInner} />
+            </Pressable>
+            <Pressable onPress={handlePickFromGallery}>
+              <Text style={styles.cameraIconText}>🖼️</Text>
+            </Pressable>
+          </View>
 
-              <TouchableOpacity
-                style={[styles.saveBtn, saved && styles.savedBtn]}
-                onPress={handleSave}
-                disabled={saved || saving}
-              >
-                <Text style={styles.saveBtnText}>
-                  {saving
-                    ? "⏳ Guardando..."
-                    : saved
-                      ? "✅ Guardado en Mi Jardín"
-                      : "💾 Guardar en Mi Jardín"}
-                </Text>
-              </TouchableOpacity>
-
-              {!saving && (image || loading || result) && (
-                <TouchableOpacity
-                  style={[styles.saveBtn, styles.btnCancelAction]}
-                  onPress={handleCancel}
-                >
-                  <Text style={styles.saveBtnText}>✖️ Cancelar</Text>
-                </TouchableOpacity>
-              )}
-            </>
+          {loading && (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="large" color="#fff" />
+              <Text style={styles.loadingText}>Identificando planta...</Text>
+            </View>
           )}
         </View>
+      ) : null}
+
+      <Modal
+        visible={showPhotoPreview}
+        animationType="fade"
+        onRequestClose={handleRetakePhoto}
+      >
+        <View style={styles.previewModal}>
+          <Image source={{ uri: capturedPhoto ?? "" }} style={styles.preview} />
+          <View style={styles.previewActions}>
+            <TouchableOpacity
+              style={[styles.previewBtn, styles.previewBtnSecondary]}
+              onPress={handleRetakePhoto}
+            >
+              <Text style={styles.previewBtnTextSecondary}>Repetir</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.previewBtn, styles.previewBtnPrimary]}
+              onPress={handleConfirmPhoto}
+            >
+              <Text style={styles.previewBtnTextPrimary}>Usar foto</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showPlantModal}
+        animationType="slide"
+        onRequestClose={resetCaptureFlow}
+      >
+        <ScrollView
+          style={styles.modalContainer}
+          contentContainerStyle={styles.content}
+        >
+          <Text style={styles.title}>Datos de la planta</Text>
+
+          {image && <Image source={{ uri: image }} style={styles.image} />}
+
+          {result ? (
+            <View style={styles.card}>
+              {result.nombreComun === "No es una planta" ? (
+                <>
+                  <Text style={styles.noPlant}>
+                    🤔 No se detectó ninguna planta
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.saveBtn, styles.btnCancelAction]}
+                    onPress={resetCaptureFlow}
+                  >
+                    <Text style={styles.saveBtnText}>Volver a cámara</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.plantName}>{result.nombreComun}</Text>
+                  <Text style={styles.scientific}>
+                    {result.nombreCientifico}
+                  </Text>
+                  <Text style={styles.description}>{result.descripcion}</Text>
+
+                  <Text style={styles.section}>🌱 Cuidados</Text>
+                  {(
+                    [
+                      ["💧", "Riego", result.cuidados.riego],
+                      ["☀️", "Luz", result.cuidados.luz],
+                      ["🌡️", "Temperatura", result.cuidados.temperatura],
+                    ] as const
+                  ).map(([icon, label, val]) => (
+                    <View key={label} style={styles.infoRow}>
+                      <Text style={styles.infoIcon}>{icon}</Text>
+                      <View>
+                        <Text style={styles.infoLabel}>{label}</Text>
+                        <Text style={styles.infoValue}>{val}</Text>
+                      </View>
+                    </View>
+                  ))}
+
+                  <View
+                    style={[
+                      styles.toxBox,
+                      result.toxicidad.esToxica ? styles.toxic : styles.safe,
+                    ]}
+                  >
+                    <Text style={styles.toxTitle}>
+                      {result.toxicidad.esToxica ? "⚠️ Tóxica" : "✅ No tóxica"}
+                    </Text>
+                    <Text style={styles.toxDetail}>
+                      {result.toxicidad.detalle}
+                    </Text>
+                  </View>
+
+                  <Text style={styles.section}>📝 Mis notas</Text>
+                  <TextInput
+                    style={styles.notesInput}
+                    placeholder="Agrega notas sobre esta planta..."
+                    value={notes}
+                    onChangeText={setNotes}
+                    multiline
+                  />
+
+                  <TouchableOpacity
+                    style={[
+                      styles.saveBtn,
+                      (!canSave || saving) && styles.saveBtnDisabled,
+                    ]}
+                    onPress={handleSave}
+                    disabled={!canSave || saving}
+                  >
+                    <Text style={styles.saveBtnText}>
+                      {saving ? "⏳ Guardando..." : "💾 Guardar en Mi Jardín"}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.saveBtn, styles.btnCancelAction]}
+                    onPress={resetCaptureFlow}
+                    disabled={saving}
+                  >
+                    <Text style={styles.saveBtnText}>Volver a cámara</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          ) : null}
+        </ScrollView>
+      </Modal>
+
+      {!showCamera && !showPhotoPreview && !showPlantModal && (
+        <TouchableOpacity
+          style={styles.fallbackBtn}
+          onPress={async () => {
+            const granted = await requestCameraPermission();
+            if (granted) setShowCamera(true);
+          }}
+        >
+          <Text style={styles.fallbackBtnText}>Abrir cámara</Text>
+        </TouchableOpacity>
       )}
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f0f7f4" },
+  container: { flex: 1, backgroundColor: "#000" },
+  modalContainer: { flex: 1, backgroundColor: "#f0f7f4" },
   content: { padding: 24, paddingTop: 64, alignItems: "center" },
   title: {
     fontSize: 24,
@@ -257,22 +407,116 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     alignSelf: "flex-start",
   },
-  buttons: { flexDirection: "row", gap: 12, marginBottom: 24 },
-  btn: {
-    backgroundColor: "#2d6a4f",
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 16,
-    alignItems: "center",
-    minWidth: 120,
+  cameraModal: {
+    flex: 1,
+    backgroundColor: "#000",
   },
-  btnAlt: { backgroundColor: "#52796f" },
-  btnCancel: { backgroundColor: "#adb5bd" },
-  btnIcon: { fontSize: 24, marginBottom: 4 },
-  btnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  cameraTopBar: {
+    position: "absolute",
+    top: 56,
+    left: 20,
+    right: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  cameraTitle: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "800",
+  },
+  cameraBottomBar: {
+    position: "absolute",
+    bottom: 36,
+    left: 20,
+    right: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  cameraIconText: {
+    color: "#fff",
+    fontSize: 22,
+    fontWeight: "700",
+  },
+  cameraIconActive: {
+    color: "#ffd166",
+  },
+  shutterOuter: {
+    width: 74,
+    height: 74,
+    borderRadius: 37,
+    borderWidth: 3,
+    borderColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  shutterInner: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: "#fff",
+  },
+  cameraOverlayTop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 140,
+  },
+  cameraOverlayBottom: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 180,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+  previewModal: {
+    flex: 1,
+    backgroundColor: "#000",
+    justifyContent: "center",
+  },
+  preview: {
+    width: "100%",
+    height: "70%",
+    resizeMode: "contain",
+  },
+  previewActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    gap: 12,
+  },
+  previewBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  previewBtnPrimary: {
+    backgroundColor: "#2d6a4f",
+  },
+  previewBtnSecondary: {
+    backgroundColor: "#f0f7f4",
+  },
+  previewBtnTextPrimary: {
+    color: "#fff",
+    fontWeight: "700",
+  },
+  previewBtnTextSecondary: {
+    color: "#1b4332",
+    fontWeight: "700",
+  },
   image: { width: "100%", height: 220, borderRadius: 20, marginBottom: 20 },
-  loadingBox: { alignItems: "center", gap: 10, marginVertical: 20 },
-  loadingText: { color: "#52796f", fontSize: 16 },
+  loadingText: { color: "#fff", fontSize: 16, fontWeight: "600" },
   card: {
     backgroundColor: "#fff",
     borderRadius: 20,
@@ -338,7 +582,21 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: "center",
   },
-  savedBtn: { backgroundColor: "#74c69d" },
+  saveBtnDisabled: { opacity: 0.7 },
   btnCancelAction: { backgroundColor: "#adb5bd", marginTop: 10 },
   saveBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  fallbackBtn: {
+    position: "absolute",
+    alignSelf: "center",
+    bottom: 120,
+    backgroundColor: "#2d6a4f",
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  fallbackBtnText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 14,
+  },
 });
