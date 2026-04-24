@@ -244,6 +244,7 @@ export default function Garden() {
   const { user } = useAuth();
   const [plants, setPlants] = useState<SavedPlant[]>([]);
   const [selected, setSelected] = useState<SavedPlant | null>(null);
+  const [isEditingDetail, setIsEditingDetail] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [toast, setToast] = useState<{
@@ -371,6 +372,13 @@ export default function Garden() {
     toxic: plants.filter((p) => p.toxicidad.esToxica).length,
   };
 
+  const formatFullDate = (isoDate: string) =>
+    new Date(isoDate).toLocaleDateString("es-ES", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+
   return (
     <View style={styles.container}>
       {/* Fondo con gradiente */}
@@ -436,6 +444,7 @@ export default function Garden() {
               index={index}
               onPress={() => {
                 setSelected(item);
+                setIsEditingDetail(false);
                 reset({
                   nombreComun: item.nombreComun,
                   nombreCientifico: item.nombreCientifico,
@@ -457,6 +466,10 @@ export default function Garden() {
         visible={!!selected}
         animationType="slide"
         presentationStyle="pageSheet"
+        onRequestClose={() => {
+          setIsEditingDetail(false);
+          setSelected(null);
+        }}
       >
         <View style={styles.modalContainer}>
           <LinearGradient
@@ -474,89 +487,184 @@ export default function Garden() {
                   style={styles.modalImage}
                 />
                 <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Editar planta</Text>
+                  <Text style={styles.modalTitle}>
+                    {isEditingDetail ? "Editar planta" : "Detalle de planta"}
+                  </Text>
                   <Text style={styles.modalSubtitle}>
-                    Actualiza la informacion de tu planta
+                    {isEditingDetail
+                      ? "Actualiza la informacion de tu planta"
+                      : "Informacion completa guardada en tu jardin"}
                   </Text>
                 </View>
 
-                <View style={styles.formContainer}>
-                  <InputText
-                    control={control}
-                    name="nombreComun"
-                    label="Nombre comun"
-                    icon="🌿"
-                    placeholder="Ej. Rosa"
-                  />
-                  <InputText
-                    control={control}
-                    name="nombreCientifico"
-                    label="Nombre cientifico"
-                    icon="🔬"
-                    placeholder="Ej. Rosa canina"
-                  />
-                  <InputText
-                    control={control}
-                    name="descripcion"
-                    label="Descripcion"
-                    icon="📄"
-                    placeholder="Descripcion de la planta..."
-                    inputProps={{ multiline: true, numberOfLines: 3 }}
-                  />
-                  <InputText
-                    control={control}
-                    name="cuidados.riego"
-                    label="Riego"
-                    icon="💧"
-                    placeholder="Ej. Cada 3 dias"
-                  />
-                  <InputText
-                    control={control}
-                    name="cuidados.luz"
-                    label="Luz"
-                    icon="☀️"
-                    placeholder="Ej. Luz indirecta"
-                  />
-                  <InputText
-                    control={control}
-                    name="cuidados.temperatura"
-                    label="Temperatura"
-                    icon="🌡️"
-                    placeholder="Ej. 15°C – 30°C"
-                  />
-                  <InputText
-                    control={control}
-                    name="notes"
-                    label="Mis notas"
-                    icon="📝"
-                    placeholder="Notas personales..."
-                    inputProps={{ multiline: true, numberOfLines: 2 }}
-                  />
+                {isEditingDetail ? (
+                  <View style={styles.formContainer}>
+                    <InputText
+                      control={control}
+                      name="nombreComun"
+                      label="Nombre comun"
+                      icon="🌿"
+                      placeholder="Ej. Rosa"
+                    />
+                    <InputText
+                      control={control}
+                      name="nombreCientifico"
+                      label="Nombre cientifico"
+                      icon="🔬"
+                      placeholder="Ej. Rosa canina"
+                    />
+                    <InputText
+                      control={control}
+                      name="descripcion"
+                      label="Descripcion"
+                      icon="📄"
+                      placeholder="Descripcion de la planta..."
+                      inputProps={{ multiline: true, numberOfLines: 3 }}
+                    />
+                    <InputText
+                      control={control}
+                      name="cuidados.riego"
+                      label="Riego"
+                      icon="💧"
+                      placeholder="Ej. Cada 3 dias"
+                    />
+                    <InputText
+                      control={control}
+                      name="cuidados.luz"
+                      label="Luz"
+                      icon="☀️"
+                      placeholder="Ej. Luz indirecta"
+                    />
+                    <InputText
+                      control={control}
+                      name="cuidados.temperatura"
+                      label="Temperatura"
+                      icon="🌡️"
+                      placeholder="Ej. 15°C – 30°C"
+                    />
+                    <InputText
+                      control={control}
+                      name="notes"
+                      label="Mis notas"
+                      icon="📝"
+                      placeholder="Notas personales..."
+                      inputProps={{ multiline: true, numberOfLines: 2 }}
+                    />
 
-                  <Pressable
-                    style={[styles.saveBtn, isSubmitting && { opacity: 0.7 }]}
-                    onPress={handleSubmit(onSubmitEdit)}
-                    disabled={isSubmitting}
-                  >
-                    <LinearGradient
-                      colors={["#2d6a4f", "#40916c"]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.saveBtnGradient}
+                    <Pressable
+                      style={[styles.saveBtn, isSubmitting && { opacity: 0.7 }]}
+                      onPress={handleSubmit(onSubmitEdit)}
+                      disabled={isSubmitting}
                     >
-                      <Text style={styles.saveBtnText}>
-                        {isSubmitting ? "Guardando..." : "Guardar cambios"}
-                      </Text>
-                    </LinearGradient>
-                  </Pressable>
+                      <LinearGradient
+                        colors={["#2d6a4f", "#40916c"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.saveBtnGradient}
+                      >
+                        <Text style={styles.saveBtnText}>
+                          {isSubmitting ? "Guardando..." : "Guardar cambios"}
+                        </Text>
+                      </LinearGradient>
+                    </Pressable>
 
-                  <Pressable
-                    style={styles.cancelBtn}
-                    onPress={() => setSelected(null)}
-                  >
-                    <Text style={styles.cancelBtnText}>Cancelar</Text>
-                  </Pressable>
-                </View>
+                    <Pressable
+                      style={styles.cancelBtn}
+                      onPress={() => setIsEditingDetail(false)}
+                    >
+                      <Text style={styles.cancelBtnText}>
+                        Volver al detalle
+                      </Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <View style={styles.detailContainer}>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Nombre comun</Text>
+                      <Text style={styles.detailValue}>
+                        {selected.nombreComun}
+                      </Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Nombre cientifico</Text>
+                      <Text style={styles.detailValue}>
+                        {selected.nombreCientifico}
+                      </Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Descripcion</Text>
+                      <Text style={styles.detailValue}>
+                        {selected.descripcion}
+                      </Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Riego</Text>
+                      <Text style={styles.detailValue}>
+                        {selected.cuidados.riego}
+                      </Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Luz</Text>
+                      <Text style={styles.detailValue}>
+                        {selected.cuidados.luz}
+                      </Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Temperatura</Text>
+                      <Text style={styles.detailValue}>
+                        {selected.cuidados.temperatura}
+                      </Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Toxicidad</Text>
+                      <Text style={styles.detailValue}>
+                        {selected.toxicidad.esToxica ? "Toxica" : "No toxica"}
+                      </Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Detalle toxicidad</Text>
+                      <Text style={styles.detailValue}>
+                        {selected.toxicidad.detalle}
+                      </Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Notas</Text>
+                      <Text style={styles.detailValue}>
+                        {selected.notes || "Sin notas"}
+                      </Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Fecha de guardado</Text>
+                      <Text style={styles.detailValue}>
+                        {formatFullDate(selected.savedAt)}
+                      </Text>
+                    </View>
+
+                    <Pressable
+                      style={styles.editBtn}
+                      onPress={() => setIsEditingDetail(true)}
+                    >
+                      <LinearGradient
+                        colors={["#2d6a4f", "#40916c"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.saveBtnGradient}
+                      >
+                        <Text style={styles.saveBtnText}>Editar</Text>
+                      </LinearGradient>
+                    </Pressable>
+
+                    <Pressable
+                      style={styles.cancelBtn}
+                      onPress={() => {
+                        setIsEditingDetail(false);
+                        setSelected(null);
+                      }}
+                    >
+                      <Text style={styles.cancelBtnText}>Cerrar</Text>
+                    </Pressable>
+                  </View>
+                )}
               </>
             )}
           </ScrollView>
@@ -797,6 +905,28 @@ const styles = StyleSheet.create({
   formContainer: {
     gap: 4,
   },
+  detailContainer: {
+    gap: 12,
+  },
+  detailRow: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#d8f3dc",
+  },
+  detailLabel: {
+    fontSize: 12,
+    textTransform: "uppercase",
+    fontWeight: "700",
+    color: "#52796f",
+    marginBottom: 4,
+  },
+  detailValue: {
+    fontSize: 15,
+    color: "#1b4332",
+    lineHeight: 21,
+  },
   saveBtn: {
     marginTop: 12,
     borderRadius: 16,
@@ -815,6 +945,16 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
     fontSize: 16,
+  },
+  editBtn: {
+    marginTop: 12,
+    borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: "#2d6a4f",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   cancelBtn: {
     borderRadius: 16,
