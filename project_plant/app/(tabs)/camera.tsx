@@ -141,6 +141,7 @@ export default function CameraScreen() {
   const handleConfirmPhoto = async () => {
     if (!capturedPhoto) return;
     setImage(capturedPhoto);
+    setLoading(true);
     setShowPhotoPreview(false);
     await analyzeImage(capturedPhoto);
   };
@@ -245,13 +246,6 @@ export default function CameraScreen() {
               <Text style={styles.cameraIconText}>🖼️</Text>
             </Pressable>
           </View>
-
-          {loading && (
-            <View style={styles.loadingOverlay}>
-              <ActivityIndicator size="large" color="#fff" />
-              <Text style={styles.loadingText}>Identificando planta...</Text>
-            </View>
-          )}
         </View>
       ) : null}
 
@@ -381,7 +375,19 @@ export default function CameraScreen() {
         </ScrollView>
       </Modal>
 
-      {!showCamera && !showPhotoPreview && !showPlantModal && (
+      <Modal visible={loading} transparent animationType="fade">
+        <View style={styles.analysisLoadingBackdrop}>
+          <View style={styles.analysisLoadingCard}>
+            <ActivityIndicator size="large" color="#2d6a4f" />
+            <Text style={styles.analysisLoadingTitle}>Analizando imagen</Text>
+            <Text style={styles.analysisLoadingDescription}>
+              Estamos identificando tu planta...
+            </Text>
+          </View>
+        </View>
+      </Modal>
+
+      {!loading && !showCamera && !showPhotoPreview && !showPlantModal && (
         <TouchableOpacity
           style={styles.fallbackBtn}
           onPress={async () => {
@@ -470,13 +476,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     height: 180,
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.35)",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
   },
   previewModal: {
     flex: 1,
@@ -598,5 +597,33 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
     fontSize: 14,
+  },
+  analysisLoadingBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  analysisLoadingCard: {
+    width: "100%",
+    maxWidth: 340,
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    paddingVertical: 26,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    gap: 10,
+  },
+  analysisLoadingTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#1b4332",
+  },
+  analysisLoadingDescription: {
+    fontSize: 14,
+    color: "#52796f",
+    textAlign: "center",
+    lineHeight: 20,
   },
 });
