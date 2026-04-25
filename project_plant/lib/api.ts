@@ -19,11 +19,8 @@ async function apiRequest<T>(
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
-  
-  console.log("Headers:", JSON.stringify(headers));
 
   const url = `${API_URL}${endpoint}`;
-  console.log("API Request:", method, url, "token:", token ? "YES" : "NO");
 
   const response = await fetch(url, {
     method,
@@ -34,15 +31,11 @@ async function apiRequest<T>(
   console.log("API Response:", response.status, response.statusText);
 
   if (!response.ok) {
-    const errorText = await response.text();
-    console.log("API Error:", errorText);
-    const error = JSON.parse(errorText || '{"error":"Request failed"}');
+    const error = await response.json().catch(() => ({ error: "Request failed" }));
     throw new Error(error.error || "Request failed");
   }
 
-  const data = await response.json();
-  console.log("API Data:", JSON.stringify(data).substring(0, 200));
-  return data;
+  return response.json();
 }
 
 export interface AuthUser {

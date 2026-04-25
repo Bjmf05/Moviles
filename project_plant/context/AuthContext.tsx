@@ -39,9 +39,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const storedToken = await AsyncStorage.getItem(TOKEN_KEY);
       const storedUser = await AsyncStorage.getItem(USER_KEY);
 
-      console.log("loadStoredAuth - token:", storedToken ? "exists" : "NO TOKEN");
-      console.log("loadStoredAuth - user:", storedUser);
-
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
@@ -54,29 +51,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = useCallback(async (email: string, password: string) => {
-    console.log("=== LOGIN START ===");
-    console.log("Email:", email);
-    try {
-      const result = await api.auth.login({ email, password });
-      console.log("API result:", JSON.stringify(result));
-      const { user: loggedUser, token: authToken } = result;
-      console.log("User:", loggedUser);
-      console.log("Token:", authToken ? authToken.substring(0, 20) + "..." : "NO TOKEN");
-      
-      if (!authToken) {
-        throw new Error("No token received from backend");
-      }
-      
-      await AsyncStorage.setItem(TOKEN_KEY, authToken);
-      await AsyncStorage.setItem(USER_KEY, JSON.stringify(loggedUser));
-      
-      setToken(authToken);
-      setUser(loggedUser);
-      console.log("=== LOGIN DONE ===");
-    } catch (error) {
-      console.log("LOGIN ERROR:", error);
-      throw error;
+    const { user: loggedUser, token: authToken } = await api.auth.login({ email, password });
+    
+    if (!authToken) {
+      throw new Error("No token received from backend");
     }
+    
+    await AsyncStorage.setItem(TOKEN_KEY, authToken);
+    await AsyncStorage.setItem(USER_KEY, JSON.stringify(loggedUser));
+    
+    setToken(authToken);
+    setUser(loggedUser);
   }, []);
 
   const register = useCallback(async (
