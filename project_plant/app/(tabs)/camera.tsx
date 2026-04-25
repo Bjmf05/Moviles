@@ -20,11 +20,12 @@ import { Toast } from "../../components/Toast";
 import { useAuth } from "../../context/AuthContext";
 import { useCamera } from "../../hooks/useCamera";
 import { identificarPlanta, PlantInfo } from "../../lib/plantService";
-import { savePlant, uploadPlantImage } from "../../lib/plants";
+import { usePlants } from "../../lib/plants";
 
 export default function CameraScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { savePlant, uploadImage } = usePlants();
   const initializedRef = useRef(false);
   const {
     cameraRef,
@@ -171,13 +172,11 @@ export default function CameraScreen() {
     if (!result || !image || !user) return;
     setSaving(true);
     try {
-      const imageUrl = await uploadPlantImage(image, user.uid);
+      const imageUrl = await uploadImage(image);
       await savePlant({
-        userId: user.uid,
         ...result,
         imageUri: imageUrl,
         notes,
-        savedAt: new Date().toISOString(),
       });
       showToast("Planta agregada a tu jardín", "success");
       setShowPlantModal(false);

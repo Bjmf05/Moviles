@@ -19,7 +19,8 @@ import { z } from "zod";
 import InputText from "../../components/InputText";
 import Toast from "../../components/Toast";
 import { useGoogleAuth } from "../../hooks/useGoogleAuth";
-import { login } from "../../lib/auth";
+import { api } from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
 
 const { width, height } = Dimensions.get("window");
 
@@ -260,6 +261,7 @@ export default function Login() {
   const formFade = useRef(new Animated.Value(0)).current;
 
   const { authGoogle, request } = useGoogleAuth();
+  const { login } = useAuth();
   const { control, handleSubmit } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },

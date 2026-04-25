@@ -1,13 +1,8 @@
 import { useAuth } from "../context/AuthContext";
 import { api, Plant } from "./api";
 
-export { api };
-export type { Plant as SavedPlant };
-
 export function usePlants() {
   const { token } = useAuth();
-  
-  console.log("usePlants - token:", token ? "exists" : "NO TOKEN");
 
   const savePlant = async (plant: Omit<Plant, "id" | "userId" | "savedAt">) => {
     if (!token) throw new Error("Not authenticated");
@@ -15,7 +10,6 @@ export function usePlants() {
   };
 
   const getUserPlants = async (): Promise<Plant[]> => {
-    console.log("getUserPlants - token:", token ? "exists" : "NO TOKEN");
     if (!token) throw new Error("Not authenticated");
     const { plants } = await api.plants.getAll(token);
     return plants;
@@ -44,3 +38,6 @@ export function usePlants() {
     uploadImage,
   };
 }
+
+export { api };
+export type { Plant };

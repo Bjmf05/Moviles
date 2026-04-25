@@ -1,5 +1,5 @@
 import { useCamera } from "@/hooks/useCamera";
-import { uploadPlantImage } from "@/lib/plants";
+import { usePlants } from "@/lib/plants";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Picker } from "@react-native-picker/picker";
 import { BlurView } from "expo-blur";
@@ -24,7 +24,7 @@ import { z } from "zod";
 import { InputText } from "../../components/InputText";
 import { Toast } from "../../components/Toast";
 import { useAuth } from "../../context/AuthContext";
-import { getUserProfile, logout, updateUserProfile } from "../../lib/auth";
+import { api } from "../../lib/api";
 type ProfileForm = {
   name: string;
   birthdate: string;
@@ -256,7 +256,8 @@ const AnimatedButton = ({
 };
 
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, token, logout } = useAuth();
+  const { uploadImage } = usePlants();
   const [profile, setProfile] = useState<any>(null);
   const [editing, setEditing] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -294,15 +295,29 @@ export default function Profile() {
   const cardScale = useRef(new Animated.Value(0.95)).current;
 
   const load = useCallback(async () => {
-    if (!user) return;
-    const data = await getUserProfile(user.uid);
-    setProfile(data);
-    reset({
-      name: data?.name ?? "",
-      birthdate: data?.birthdate ?? "",
-      country: data?.country ?? "",
-    });
-  }, [reset, user]);
+    if (!user || !token) return;
+    try {
+      const data = await api.auth.getProfile(token);
+      setProfile(data);
+      reset({
+        name: data?.name || user.name || "",
+        birthdate: data?.birthdate || "",
+        country: data?.country || "",
+      });
+    } catch (e) {
+      setProfile({
+        name: user.name || "",
+        email: user.email || "",
+        birthdate: "",
+        country: "",
+      });
+      reset({
+        name: user.name || "",
+        birthdate: "",
+        country: "",
+      });
+    }
+  }, [reset, user, token]);
 
   const showToast = (
     message: string,
@@ -344,9 +359,9 @@ export default function Profile() {
   }, [cardFade, cardScale, headerFade, headerSlide, load, user]);
 
   const handleSave = async (data: ProfileForm) => {
-    if (!user) return;
+    if (!user || !token) return;
     try {
-      await updateUserProfile(user.uid, data);
+      await api.auth.updateProfile(token, data);
       setEditing(false);
       showToast("Perfil actualizado correctamente.");
       load();
@@ -388,10 +403,10 @@ export default function Profile() {
   };
 
   const handleConfirmPhoto = async () => {
-    if (!user || !capturedPhoto) return;
+    if (!user || !token || !capturedPhoto) return;
     try {
-      const publicUrl = await uploadPlantImage(capturedPhoto, user.uid);
-      await updateUserProfile(user.uid, { photoURL: publicUrl });
+      const publicUrl = await uploadImage(capturedPhoto);
+      await api.auth.updateProfile(token, { photoURL: publicUrl });
       showToast("Foto de perfil actualizada.");
       setShowPhotoPreview(false);
       setCapturedPhoto(null);

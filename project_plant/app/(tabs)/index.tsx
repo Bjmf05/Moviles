@@ -197,7 +197,7 @@ const DailyTip = () => {
 
 export default function Home() {
   const { user } = useAuth();
-  const name = user?.displayName?.split(" ")[0] ?? "Explorador";
+  const name = user?.name?.split(" ")[0] ?? "Explorador";
 
   // Animaciones de entrada
   const greetingFade = useRef(new Animated.Value(0)).current;

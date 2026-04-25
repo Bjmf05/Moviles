@@ -20,8 +20,7 @@ import { z } from "zod";
 import { InputText } from "../../components/InputText";
 import { Toast } from "../../components/Toast";
 import { useAuth } from "../../context/AuthContext";
-import { db } from "../../lib/firebase";
-import { deletePlant, getUserPlants, SavedPlant } from "../../lib/plants";
+import { usePlants } from "../../lib/plants";
 
 const plantSchema = z.object({
   nombreComun: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
@@ -242,6 +241,7 @@ const EmptyState = () => {
 
 export default function Garden() {
   const { user } = useAuth();
+  const { getUserPlants, deletePlant: removePlant } = usePlants();
   const [plants, setPlants] = useState<SavedPlant[]>([]);
   const [selected, setSelected] = useState<SavedPlant | null>(null);
   const [isEditingDetail, setIsEditingDetail] = useState(false);
@@ -287,8 +287,8 @@ export default function Garden() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    setPlants(await getUserPlants(user.uid));
-  }, [user]);
+    setPlants(await getUserPlants());
+  }, [user, getUserPlants]);
 
   useEffect(() => {
     if (user) load();
@@ -325,7 +325,7 @@ export default function Garden() {
     setShowDeleteConfirm(false);
     setPendingDeleteId(null);
     try {
-      await deletePlant(id);
+      await removePlant(id);
       load();
       showToast("Planta eliminada");
     } catch (error) {
