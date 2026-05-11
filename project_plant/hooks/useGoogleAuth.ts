@@ -7,6 +7,7 @@ import { auth, db } from "../lib/firebase";
 export function useGoogleAuth() {
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
   });
 
   useEffect(() => {

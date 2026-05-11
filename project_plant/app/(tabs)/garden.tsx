@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LinearGradient } from "expo-linear-gradient";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { doc, updateDoc } from "firebase/firestore";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -21,6 +21,7 @@ import { InputText } from "../../components/InputText";
 import { Toast } from "../../components/Toast";
 import { useAuth } from "../../context/AuthContext";
 import { usePlants } from "../../lib/plants";
+import { resolveLocalImageMap } from "../../lib/localCache";
 
 const plantSchema = z.object({
   nombreComun: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
@@ -98,11 +99,13 @@ const PlantCard = ({
   index,
   onPress,
   onDelete,
+  localUri,
 }: {
   item: SavedPlant;
   index: number;
   onPress: () => void;
   onDelete: () => void;
+  localUri?: string;
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -154,7 +157,7 @@ const PlantCard = ({
         onPressOut={handlePressOut}
         style={styles.plantCard}
       >
-        <Image source={{ uri: item.imageUri }} style={styles.plantImage} />
+        <Image source={{ uri: localUri || item.imageUri }} style={styles.plantImage} />
         <View style={styles.plantInfo}>
           <Text style={styles.plantName}>{item.nombreComun}</Text>
           <Text style={styles.plantScientific}>{item.nombreCientifico}</Text>
@@ -247,6 +250,8 @@ export default function Garden() {
   const [isEditingDetail, setIsEditingDetail] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
+  const [localImages, setLocalImages] = useState<Record<string, string>>({});
   const [toast, setToast] = useState<{
     visible: boolean;
     message: string;
@@ -270,6 +275,13 @@ export default function Garden() {
 
   const getGardenErrorMessage = (error: unknown, fallback: string) => {
     const message = error instanceof Error ? error.message : "";
+    const normalized = message.toLowerCase();
+    if (
+      normalized.includes("unauthorized") ||
+      normalized.includes("invalid token")
+    ) {
+      return "Tu sesión no es válida para este backend. Cierra sesión e inicia nuevamente.";
+    }
     if (message.toLowerCase().includes("network")) {
       return "Sin conexión. Revisa tu internet e intenta de nuevo.";
     }
@@ -287,7 +299,21 @@ export default function Garden() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    setPlants(await getUserPlants());
+    try {
+      const result = await getUserPlants();
+      setPlants(result.plants);
+      setIsOffline(result.fromCache);
+    } catch (error) {
+      setPlants([]);
+      setIsOffline(false);
+      showToast(
+        getGardenErrorMessage(
+          error,
+          "No se pudo cargar tu jardín. Intenta de nuevo.",
+        ),
+        "error",
+      );
+    }
   }, [user, getUserPlants]);
 
   useEffect(() => {
@@ -313,6 +339,14 @@ export default function Garden() {
       load();
     }, [load]),
   );
+
+  useEffect(() => {
+    if (plants.length === 0) {
+      setLocalImages({});
+      return;
+    }
+    resolveLocalImageMap(plants).then(setLocalImages);
+  }, [plants]);
 
   const handleDelete = (id: string) => {
     setPendingDeleteId(id);
@@ -403,7 +437,12 @@ export default function Garden() {
           },
         ]}
       >
-        <Text style={styles.title}>Mi Jardin</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>Mi Jardin</Text>
+          <Pressable style={styles.calendarBtn} onPress={() => router.push("/calendar")}>
+            <Text style={styles.calendarBtnText}>📅</Text>
+          </Pressable>
+        </View>
         <Text style={styles.subtitle}>Tu coleccion de plantas</Text>
       </Animated.View>
 
@@ -429,6 +468,15 @@ export default function Garden() {
         />
       </View>
 
+      {/* Indicador offline */}
+      {isOffline && (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineBannerText}>
+            Modo offline — mostrando datos guardados
+          </Text>
+        </View>
+      )}
+
       {/* Lista de plantas o estado vacio */}
       {plants.length === 0 ? (
         <EmptyState />
@@ -442,6 +490,7 @@ export default function Garden() {
             <PlantCard
               item={item}
               index={index}
+              localUri={localImages[item.id]}
               onPress={() => {
                 setSelected(item);
                 setIsEditingDetail(false);
@@ -483,7 +532,7 @@ export default function Garden() {
             {selected && (
               <>
                 <Image
-                  source={{ uri: selected.imageUri }}
+                  source={{ uri: localImages[selected.id] || selected.imageUri }}
                   style={styles.modalImage}
                 />
                 <View style={styles.modalHeader}>
@@ -752,6 +801,27 @@ const styles = StyleSheet.create({
     paddingTop: 64,
     marginBottom: 20,
     zIndex: 2,
+  },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  calendarBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  calendarBtnText: {
+    fontSize: 20,
   },
   title: {
     fontSize: 32,
@@ -1031,6 +1101,22 @@ const styles = StyleSheet.create({
   },
   confirmBtnTextDanger: {
     color: "#e63946",
-    fontWeight: "700",
+  },
+  offlineBanner: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: "#fff3cd",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#ffeeba",
+    zIndex: 2,
+  },
+  offlineBannerText: {
+    fontSize: 13,
+    color: "#856404",
+    fontWeight: "600",
+    textAlign: "center",
   },
 });

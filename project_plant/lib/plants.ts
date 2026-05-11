@@ -1,5 +1,10 @@
 import { useAuth } from "../context/AuthContext";
 import { api, Plant } from "./api";
+import {
+  cachePlants,
+  getCachedPlants,
+  cacheAllPlantImages,
+} from "./localCache";
 
 export { api };
 export type { Plant as SavedPlant };
@@ -12,10 +17,26 @@ export function usePlants() {
     return api.plants.create(token, plant);
   };
 
-  const getUserPlants = async (): Promise<Plant[]> => {
+  const getUserPlants = async (): Promise<{
+    plants: Plant[];
+    fromCache: boolean;
+  }> => {
     if (!token) throw new Error("Not authenticated");
-    const { plants } = await api.plants.getAll(token);
-    return plants;
+    try {
+      const result = await api.plants.getAll(token);
+      const plants = result.plants;
+      cachePlants(plants);
+      cacheAllPlantImages(plants);
+      return { plants, fromCache: false };
+    } catch {
+      const cached = await getCachedPlants();
+      if (cached.length > 0) {
+        return { plants: cached, fromCache: true };
+      }
+      throw new Error(
+        "No hay datos guardados localmente. Conectate a internet para cargar tu jardin.",
+      );
+    }
   };
 
   const updatePlantNotes = async (plantId: string, notes: string) => {

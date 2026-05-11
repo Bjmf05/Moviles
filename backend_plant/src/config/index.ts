@@ -74,10 +74,13 @@ export function loadConfig(): Config {
       bucketName: "plant-images",
     },
     plantId: {
-      apiKey: getEnv("EXPO_PUBLIC_PLANT_ID_API_KEY"),
+      apiKey: getEnv("PLANT_ID_API_KEY"),
     },
     libreTranslate: {
-      url: getEnv("EXPO_PUBLIC_LIBRETRANSLATE_URL", "https://libretranslate.de/translate"),
+      url: getEnv(
+        "EXPO_PUBLIC_LIBRETRANSLATE_URL",
+        "https://libretranslate.de/translate",
+      ),
     },
     google: {
       androidClientId: getEnv("EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID"),
@@ -94,12 +97,15 @@ export function loadConfig(): Config {
 
 export function requireValidConfig(): Config {
   const cfg = loadConfig();
-  
+
   if (!cfg.supabase.url) throw new Error("Missing EXPO_PUBLIC_SUPABASE_URL");
-  if (!cfg.supabase.anonKey) throw new Error("Missing EXPO_PUBLIC_SUPABASE_ANON_KEY");
-  if (!cfg.plantId.apiKey) throw new Error("Missing EXPO_PUBLIC_PLANT_ID_API_KEY");
-  if (!cfg.google.androidClientId) throw new Error("Missing EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID");
-  
+  if (!cfg.supabase.anonKey)
+    throw new Error("Missing EXPO_PUBLIC_SUPABASE_ANON_KEY");
+  if (!cfg.plantId.apiKey)
+    throw new Error("Missing EXPO_PUBLIC_PLANT_ID_API_KEY");
+  if (!cfg.google.androidClientId)
+    throw new Error("Missing EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID");
+
   return cfg;
 }
 
@@ -108,11 +114,25 @@ export function getConfig(): Config {
 }
 
 export const config = {
-  get app() { return loadConfig().app; },
-  get firebase() { return loadConfig().firebase; },
-  get supabase() { return loadConfig().supabase; },
-  get plantId() { return loadConfig().plantId; },
-  get libreTranslate() { return loadConfig().libreTranslate; },
-  get google() { return loadConfig().google; },
-  get storage() { return loadConfig().storage; },
+  get app() {
+    return loadConfig().app;
+  },
+  get firebase() {
+    return loadConfig().firebase;
+  },
+  get supabase() {
+    return loadConfig().supabase;
+  },
+  get plantId() {
+    return loadConfig().plantId;
+  },
+  get libreTranslate() {
+    return loadConfig().libreTranslate;
+  },
+  get google() {
+    return loadConfig().google;
+  },
+  get storage() {
+    return loadConfig().storage;
+  },
 };

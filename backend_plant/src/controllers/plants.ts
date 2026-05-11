@@ -1,9 +1,24 @@
 import { Request, Response } from "express";
 import { getFirestore } from "../services/firebase.js";
-import { uploadUserImage, deleteUserImage } from "../services/supabase.js";
-import { DocumentData, QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { deleteUserImage } from "../services/supabase.js";
 
 const PLANTS_COLLECTION = "plants";
+
+function parseWateringFrequency(riego: string): number {
+  const match = riego.match(/Cada\s+(\d+)\s+días?/i);
+  if (match) return parseInt(match[1], 10);
+  const lower = riego.toLowerCase();
+  if (lower.includes("frecuente")) return 2;
+  if (lower.includes("escaso") || lower.includes("poco")) return 7;
+  if (lower.includes("moderado") || lower.includes("normal")) return 3;
+  return 3;
+}
+
+function calcNextWatering(frequencyDays: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + frequencyDays);
+  return d.toISOString().split("T")[0];
+}
 
 interface PlantCare {
   riego: string;
@@ -16,6 +31,12 @@ interface Toxicity {
   detalle: string;
 }
 
+interface WateringSchedule {
+  frequencyDays: number;
+  nextWateringDate: string;
+  lastWateredDate: string | null;
+}
+
 interface Plant {
   userId: string;
   nombreComun: string;
@@ -23,6 +44,7 @@ interface Plant {
   descripcion: string;
   cuidados: PlantCare;
   toxicidad: Toxicity;
+  wateringSchedule: WateringSchedule;
   imageUri?: string;
   notes?: string;
   savedAt?: string;
@@ -35,6 +57,7 @@ interface CreatePlantBody {
   cuidados: PlantCare;
   toxicidad: Toxicity;
   imageUri?: string;
+  frequencyDays?: number;
 }
 
 interface UpdatePlantBody {
@@ -62,12 +85,15 @@ export async function createPlant(req: Request, res: Response): Promise<void> {
       cuidados,
       toxicidad,
       imageUri,
+      frequencyDays,
     } = req.body as CreatePlantBody;
 
     if (!nombreComun || !nombreCientifico) {
       res.status(400).json({ error: "Missing required fields" });
       return;
     }
+
+    const freq = frequencyDays || parseWateringFrequency(cuidados?.riego || "");
 
     const db = getFirestore();
     const plantData: Plant = {
@@ -77,6 +103,11 @@ export async function createPlant(req: Request, res: Response): Promise<void> {
       descripcion: descripcion || "",
       cuidados: cuidados || { riego: "", luz: "", temperatura: "" },
       toxicidad: toxicidad || { esToxica: false, detalle: "" },
+      wateringSchedule: {
+        frequencyDays: freq,
+        nextWateringDate: calcNextWatering(freq),
+        lastWateredDate: null,
+      },
       imageUri: imageUri || "",
       notes: "",
       savedAt: new Date().toISOString(),
@@ -180,7 +211,7 @@ export async function updatePlant(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const updateData: Partial<Plant> = {};
+    const updateData: Record<string, unknown> = {};
     if (updates.nombreComun !== undefined) updateData.nombreComun = updates.nombreComun;
     if (updates.nombreCientifico !== undefined) updateData.nombreCientifico = updates.nombreCientifico;
     if (updates.descripcion !== undefined) updateData.descripcion = updates.descripcion;
@@ -188,6 +219,12 @@ export async function updatePlant(req: Request, res: Response): Promise<void> {
     if (updates.toxicidad !== undefined) updateData.toxicidad = updates.toxicidad;
     if (updates.imageUri !== undefined) updateData.imageUri = updates.imageUri;
     if (updates.notes !== undefined) updateData.notes = updates.notes;
+
+    if (updates.cuidados?.riego !== undefined && updates.cuidados.riego !== plant.cuidados.riego) {
+      const freq = parseWateringFrequency(updates.cuidados.riego);
+      updateData["wateringSchedule.frequencyDays"] = freq;
+      updateData["wateringSchedule.nextWateringDate"] = calcNextWatering(freq);
+    }
 
     await docRef.update(updateData);
 

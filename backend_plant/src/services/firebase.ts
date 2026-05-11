@@ -18,10 +18,22 @@ export async function initFirebase(): Promise<void> {
     return;
   }
 
+  const sanitizeEnv = (value: string | undefined): string | undefined => {
+    if (!value) return undefined;
+    const trimmed = value.trim();
+    return trimmed.replace(/^"|"$/g, "");
+  };
+
+  const clientEmail = sanitizeEnv(cfg.firebase.clientEmail);
+  const privateKey = sanitizeEnv(cfg.firebase.privateKey)?.replace(
+    /\\n/g,
+    "\n",
+  );
+
   const serviceAccount: admin.ServiceAccount = {
     projectId: cfg.firebase.projectId,
-    clientEmail: cfg.firebase.clientEmail || undefined,
-    privateKey: (cfg.firebase.privateKey as string).replace(/\\n/g, "\n"),
+    clientEmail: clientEmail || undefined,
+    privateKey: privateKey,
   };
 
   admin.initializeApp({
@@ -49,13 +61,20 @@ export function getFirebaseAuthLazy(): admin.auth.Auth {
   return auth;
 }
 
-export async function verifyIdToken(token: string): Promise<admin.auth.DecodedIdToken> {
+export async function verifyIdToken(
+  token: string,
+): Promise<admin.auth.DecodedIdToken> {
   return getFirebaseAuth().verifyIdToken(token);
 }
 
 export const firebaseAuthService = {
-  get auth() { return getFirebaseAuthLazy(); },
-  createCustomToken(uid: string, additionalClaims?: Record<string, unknown>): Promise<string> {
+  get auth() {
+    return getFirebaseAuthLazy();
+  },
+  createCustomToken(
+    uid: string,
+    additionalClaims?: Record<string, unknown>,
+  ): Promise<string> {
     return getFirebaseAuthLazy().createCustomToken(uid, additionalClaims);
   },
   getUserByEmail(email: string): Promise<admin.auth.UserRecord> {
@@ -67,7 +86,9 @@ export const firebaseAuthService = {
   verifyIdToken(token: string): Promise<admin.auth.DecodedIdToken> {
     return getFirebaseAuthLazy().verifyIdToken(token);
   },
-  createUser(properties: admin.auth.CreateRequest): Promise<admin.auth.UserRecord> {
+  createUser(
+    properties: admin.auth.CreateRequest,
+  ): Promise<admin.auth.UserRecord> {
     return getFirebaseAuthLazy().createUser(properties);
   },
 };

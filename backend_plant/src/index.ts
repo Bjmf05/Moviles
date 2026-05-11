@@ -10,6 +10,7 @@ import translateRouter from "./routes/translate.js";
 import usersRouter from "./routes/users.js";
 import plantsRouter from "./routes/plants.js";
 import uploadsRouter from "./routes/uploads.js";
+import calendarRouter from "./routes/calendar.js";
 import { initFirebase } from "./services/firebase.js";
 import { initSupabase } from "./services/supabase.js";
 
@@ -27,6 +28,7 @@ app.use("/api/translate", translateRouter);
 app.use("/api/auth", usersRouter);
 app.use("/api/plants", plantsRouter);
 app.use("/api/images", uploadsRouter);
+app.use("/api/calendar", calendarRouter);
 
 // Health check para Render
 app.get("/health", (_req, res) => {

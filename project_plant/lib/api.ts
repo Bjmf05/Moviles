@@ -8,7 +8,7 @@ interface RequestOptions {
 
 async function apiRequest<T>(
   endpoint: string,
-  options: RequestOptions = {}
+  options: RequestOptions = {},
 ): Promise<T> {
   const { method = "GET", body, token } = options;
 
@@ -28,11 +28,25 @@ async function apiRequest<T>(
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  console.log("API Response:", response.status, response.statusText);
+  console.log(
+    "API Response:",
+    method,
+    url,
+    response.status,
+    response.statusText,
+  );
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Request failed" }));
-    throw new Error(error.error || "Request failed");
+    const errorBody = await response
+      .json()
+      .catch(
+        () =>
+          ({ error: "Request failed" }) as { error?: string; message?: string },
+      );
+
+    const errorLabel = errorBody?.error || "Request failed";
+    const errorMessage = errorBody?.message ? `: ${errorBody.message}` : "";
+    throw new Error(`${errorLabel}${errorMessage}`);
   }
 
   return response.json();
@@ -61,7 +75,13 @@ export interface Plant {
 
 export const api = {
   auth: {
-    register: (data: { email: string; password: string; name: string; birthdate?: string; country?: string }) =>
+    register: (data: {
+      email: string;
+      password: string;
+      name: string;
+      birthdate?: string;
+      country?: string;
+    }) =>
       apiRequest<{ user: AuthUser; token: string }>("/api/auth/register", {
         method: "POST",
         body: data,
