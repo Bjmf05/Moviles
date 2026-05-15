@@ -9,6 +9,8 @@ interface CreateUserBody {
   email: string;
   password: string;
   name: string;
+  birthdate?: string;
+  country?: string;
 }
 
 interface LoginBody {
@@ -19,12 +21,17 @@ interface LoginBody {
 interface UpdateUserBody {
   name?: string;
   imageUri?: string;
+  birthdate?: string;
+  country?: string;
 }
 
-async function verifyPasswordWithFirebase(email: string, password: string): Promise<string> {
+async function verifyPasswordWithFirebase(
+  email: string,
+  password: string,
+): Promise<string> {
   const firebaseConfig = config.firebase;
   const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseConfig.apiKey}`;
-  
+
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -35,13 +42,14 @@ async function verifyPasswordWithFirebase(email: string, password: string): Prom
     throw new Error("Invalid credentials");
   }
 
-  const data = await response.json() as { idToken: string; localId: string };
+  const data = (await response.json()) as { idToken: string; localId: string };
   return data.idToken;
 }
 
 export async function createUser(req: Request, res: Response): Promise<void> {
   try {
-    const { email, password, name } = req.body as CreateUserBody;
+    const { email, password, name, birthdate, country } =
+      req.body as CreateUserBody;
 
     if (!email || !password || !name) {
       res.status(400).json({
@@ -57,16 +65,30 @@ export async function createUser(req: Request, res: Response): Promise<void> {
     });
 
     const db = getFirestore();
-    await db.collection(USERS_COLLECTION).doc(userRecord.uid).set({
+    const userDoc: Record<string, unknown> = {
       uid: userRecord.uid,
       email: userRecord.email,
       name: userRecord.displayName || name,
       createdAt: new Date().toISOString(),
-    });
+    };
+
+    if (birthdate) userDoc.birthdate = birthdate;
+    if (country) userDoc.country = country;
+
+    await db.collection(USERS_COLLECTION).doc(userRecord.uid).set(userDoc);
 
     const token = generateToken({ uid: userRecord.uid, email: email, name });
 
-    res.status(201).json({ token, user: { uid: userRecord.uid, email: userRecord.email, name } });
+    res.status(201).json({
+      token,
+      user: {
+        uid: userRecord.uid,
+        email: userRecord.email,
+        name,
+        birthdate,
+        country,
+      },
+    });
   } catch (error: unknown) {
     console.error("Error creating user:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -88,26 +110,51 @@ export async function loginUser(req: Request, res: Response): Promise<void> {
     } catch (e) {
       try {
         const userRecord = await firebaseAuthService.auth.getUserByEmail(email);
-        const token = generateToken({ uid: userRecord.uid, email: email, name: userRecord.displayName || "" });
-        res.json({ token, user: { uid: userRecord.uid, email: userRecord.email, name: userRecord.displayName } });
+        const token = generateToken({
+          uid: userRecord.uid,
+          email: email,
+          name: userRecord.displayName || "",
+        });
+        res.json({
+          token,
+          user: {
+            uid: userRecord.uid,
+            email: userRecord.email,
+            name: userRecord.displayName,
+          },
+        });
         return;
       } catch (inner) {
         throw new Error("Invalid credentials");
       }
     }
-    
+
     const userRecord = await firebaseAuthService.auth.getUserByEmail(email);
 
-    const token = generateToken({ uid: userRecord.uid, email: email, name: userRecord.displayName || "" });
+    const token = generateToken({
+      uid: userRecord.uid,
+      email: email,
+      name: userRecord.displayName || "",
+    });
 
-    res.json({ token, user: { uid: userRecord.uid, email: userRecord.email, name: userRecord.displayName } });
+    res.json({
+      token,
+      user: {
+        uid: userRecord.uid,
+        email: userRecord.email,
+        name: userRecord.displayName,
+      },
+    });
   } catch (error: unknown) {
     console.error("Error logging in:", error);
     res.status(401).json({ error: "Invalid credentials" });
   }
 }
 
-export async function getUserProfile(req: Request, res: Response): Promise<void> {
+export async function getUserProfile(
+  req: Request,
+  res: Response,
+): Promise<void> {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
@@ -123,16 +170,26 @@ export async function getUserProfile(req: Request, res: Response): Promise<void>
 
     const decoded = await verifyToken(token);
     const db = getFirestore();
-    const userDoc = await db.collection(USERS_COLLECTION).doc(decoded.uid).get();
+    const userDoc = await db
+      .collection(USERS_COLLECTION)
+      .doc(decoded.uid)
+      .get();
 
     if (!userDoc.exists) {
-      await db.collection(USERS_COLLECTION).doc(decoded.uid).set({
+      await db
+        .collection(USERS_COLLECTION)
+        .doc(decoded.uid)
+        .set({
+          uid: decoded.uid,
+          email: decoded.email,
+          name: decoded.name || "",
+          createdAt: new Date().toISOString(),
+        });
+      res.json({
         uid: decoded.uid,
         email: decoded.email,
         name: decoded.name || "",
-        createdAt: new Date().toISOString(),
       });
-      res.json({ uid: decoded.uid, email: decoded.email, name: decoded.name || "" });
       return;
     }
 
@@ -143,7 +200,10 @@ export async function getUserProfile(req: Request, res: Response): Promise<void>
   }
 }
 
-export async function updateUserProfile(req: Request, res: Response): Promise<void> {
+export async function updateUserProfile(
+  req: Request,
+  res: Response,
+): Promise<void> {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
@@ -159,11 +219,17 @@ export async function updateUserProfile(req: Request, res: Response): Promise<vo
 
     const decoded = await verifyToken(token);
     const updates = req.body as UpdateUserBody;
+    const safeUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([, value]) => value !== undefined),
+    );
 
     const db = getFirestore();
-    await db.collection(USERS_COLLECTION).doc(decoded.uid).update(updates as Record<string, unknown>);
+    await db.collection(USERS_COLLECTION).doc(decoded.uid).update(safeUpdates);
 
-    const userDoc = await db.collection(USERS_COLLECTION).doc(decoded.uid).get();
+    const userDoc = await db
+      .collection(USERS_COLLECTION)
+      .doc(decoded.uid)
+      .get();
     res.json(userDoc.data());
   } catch (error: unknown) {
     console.error("Error updating profile:", error);

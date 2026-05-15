@@ -3,7 +3,7 @@ import { Picker } from "@react-native-picker/picker";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   Animated,
@@ -22,7 +22,7 @@ import {
 import { z } from "zod";
 import { InputText } from "../../components/InputText";
 import { Toast } from "../../components/Toast";
-import { register } from "../../lib/auth";
+import { useAuth } from "../../context/AuthContext";
 
 const { width, height } = Dimensions.get("window");
 
@@ -77,15 +77,18 @@ const FloatingLeaf = ({
   const translateX = useRef(new Animated.Value(startX)).current;
   const rotate = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(0)).current;
+  const animRef = useRef<Animated.CompositeAnimation | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const animate = () => {
+      if (cancelled) return;
       translateY.setValue(-100);
       translateX.setValue(startX);
       rotate.setValue(0);
       opacity.setValue(0);
 
-      Animated.parallel([
+      animRef.current = Animated.parallel([
         Animated.timing(translateY, {
           toValue: height + 100,
           duration: duration,
@@ -121,12 +124,31 @@ const FloatingLeaf = ({
           easing: Easing.linear,
           useNativeDriver: true,
         }),
-      ]).start(() => animate());
+      ]);
+      animRef.current.start(() => {
+        if (!cancelled) {
+          animate();
+        }
+      });
     };
 
     const timeout = setTimeout(animate, delay);
-    return () => clearTimeout(timeout);
-  }, []);
+    return () => {
+      cancelled = true;
+      animRef.current?.stop();
+      clearTimeout(timeout);
+    };
+  }, [
+    delay,
+    duration,
+    rotation,
+    size,
+    startX,
+    translateX,
+    translateY,
+    rotate,
+    opacity,
+  ]);
 
   const rotateInterpolate = rotate.interpolate({
     inputRange: [0, 360],
@@ -175,7 +197,7 @@ const PulsingLogo = () => {
         }),
       ]),
     ).start();
-  }, []);
+  }, [scale]);
 
   return (
     <Animated.View style={[styles.logoContainer, { transform: [{ scale }] }]}>
@@ -250,7 +272,7 @@ export default function Register() {
     message: "",
     type: "success",
   });
-
+  const { register } = useAuth();
   // Animaciones de entrada
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -298,7 +320,7 @@ export default function Register() {
         }),
       ]),
     ]).start();
-  }, []);
+  }, [fadeAnim, slideAnim, formFade, formSlide]);
 
   const formatDate = (date: Date) =>
     date.toLocaleDateString("es-ES", {
@@ -374,9 +396,6 @@ export default function Register() {
         data.country,
       );
       showToast("Cuenta creada correctamente.", "success");
-      setTimeout(() => {
-        router.replace("../(tabs)/");
-      }, 800);
     } catch (e: any) {
       showToast(getRegisterErrorMessage(e), "error");
     } finally {
@@ -385,16 +404,18 @@ export default function Register() {
   };
 
   // Generar hojas flotantes con diferentes emojis
-  const leafEmojis = ["🍃", "🌿", "🌱", "☘️", "🍀"];
-  const leaves = Array.from({ length: 6 }, (_, i) => ({
-    id: i,
-    delay: i * 2000,
-    startX: Math.random() * width,
-    duration: 10000 + Math.random() * 5000,
-    size: 18 + Math.random() * 16,
-    rotation: 360 + Math.random() * 720,
-    emoji: leafEmojis[i % leafEmojis.length],
-  }));
+  const leaves = useMemo(() => {
+    const leafEmojis = ["🍃", "🌿", "🌱", "☘️", "🍀"];
+    return Array.from({ length: 6 }, (_, i) => ({
+      id: i,
+      delay: i * 2000,
+      startX: Math.random() * width,
+      duration: 10000 + Math.random() * 5000,
+      size: 18 + Math.random() * 16,
+      rotation: 360 + Math.random() * 720,
+      emoji: leafEmojis[i % leafEmojis.length],
+    }));
+  }, []);
 
   return (
     <View style={styles.container}>

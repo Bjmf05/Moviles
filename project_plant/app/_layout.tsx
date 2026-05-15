@@ -8,8 +8,8 @@ function RootNavigator() {
 
   useEffect(() => {
     if (!loading) {
-      if (user) router.replace("../(tabs)/" as any);
-      else router.replace("/(auth)/login" as any);
+      if (user) router.replace("/(tabs)");
+      else router.replace("/(auth)/login");
     }
   }, [user, loading]);
 

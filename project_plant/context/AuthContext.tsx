@@ -1,5 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
 import { api, AuthUser } from "../lib/api";
 
 const TOKEN_KEY = "@auth_token";
@@ -10,7 +16,13 @@ type AuthContextType = {
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string, birthdate?: string, country?: string) => Promise<void>;
+  register: (
+    email: string,
+    password: string,
+    name: string,
+    birthdate?: string,
+    country?: string,
+  ) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<AuthUser>) => Promise<void>;
 };
@@ -51,40 +63,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = useCallback(async (email: string, password: string) => {
-    const { user: loggedUser, token: authToken } = await api.auth.login({ email, password });
-    
+    const { user: loggedUser, token: authToken } = await api.auth.login({
+      email,
+      password,
+    });
+
     if (!authToken) {
       throw new Error("No token received from backend");
     }
-    
+
     await AsyncStorage.setItem(TOKEN_KEY, authToken);
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(loggedUser));
-    
+
     setToken(authToken);
     setUser(loggedUser);
   }, []);
 
-  const register = useCallback(async (
-    email: string,
-    password: string,
-    name: string,
-    birthdate?: string,
-    country?: string
-  ) => {
-    const { user: newUser, token: authToken } = await api.auth.register({
-      email,
-      password,
-      name,
-      birthdate,
-      country,
-    });
-    
-    await AsyncStorage.setItem(TOKEN_KEY, authToken);
-    await AsyncStorage.setItem(USER_KEY, JSON.stringify(newUser));
-    
-    setToken(authToken);
-    setUser(newUser);
-  }, []);
+  const register = useCallback(
+    async (
+      email: string,
+      password: string,
+      name: string,
+      birthdate?: string,
+      country?: string,
+    ) => {
+      const { user: newUser, token: authToken } = await api.auth.register({
+        email,
+        password,
+        name,
+        birthdate,
+        country,
+      });
+      if (!authToken) {
+        throw new Error("No token received from backend");
+      }
+      await AsyncStorage.setItem(TOKEN_KEY, authToken);
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(newUser));
+
+      setToken(authToken);
+      setUser(newUser);
+    },
+    [],
+  );
 
   const logout = useCallback(async () => {
     await AsyncStorage.removeItem(TOKEN_KEY);
@@ -93,18 +113,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
-  const updateProfile = useCallback(async (data: Partial<AuthUser>) => {
-    if (!token) return;
-    
-    await api.auth.updateProfile(token, data);
-    
-    const updatedUser = { ...user, ...data } as AuthUser;
-    await AsyncStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
-    setUser(updatedUser);
-  }, [token, user]);
+  const updateProfile = useCallback(
+    async (data: Partial<AuthUser>) => {
+      if (!token) {
+        throw new Error("No token received from backend");
+      }
+
+      await api.auth.updateProfile(token, data);
+
+      const updatedUser = { ...user, ...data } as AuthUser;
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+      setUser(updatedUser);
+    },
+    [token, user],
+  );
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateProfile }}>
+    <AuthContext.Provider
+      value={{ user, token, loading, login, register, logout, updateProfile }}
+    >
       {children}
     </AuthContext.Provider>
   );

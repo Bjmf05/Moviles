@@ -19,7 +19,6 @@ import { z } from "zod";
 import InputText from "../../components/InputText";
 import Toast from "../../components/Toast";
 import { useGoogleAuth } from "../../hooks/useGoogleAuth";
-import { api } from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
 
 const { width, height } = Dimensions.get("window");
@@ -328,7 +327,7 @@ export default function Login() {
     setLoading(true);
     try {
       await login(data.email, data.password);
-      router.replace("../(tabs)/");
+      router.replace("/(tabs)");
     } catch (error: any) {
       showToast(getLoginErrorMessage(error), "error");
     } finally {
