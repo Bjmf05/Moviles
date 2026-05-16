@@ -7,29 +7,30 @@ export const multerErrorHandler: ErrorRequestHandler = (
   next,
 ) => {
   if (err instanceof multer.MulterError) {
-    console.warn(`Multer error:, ${err.code} - ${err.message}`);
-  }
-  switch (err.code) {
-    case "LIMIT_FILE_SIZE":
-      return res.status(413).json({
-        error: "File too large",
-        code: "MULTER_LIMIT_FILE_SIZE",
-        message: "El archivo es muy grande. Tamaño máximo: 10MB.",
-      });
+    console.warn(`Multer error: ${err.code} - ${err.message}`);
 
-    case "LIMIT_UNEXPECTED_FILE":
-      return res.status(400).json({
-        error: "Unexpected file field",
-        code: "MULTER_LIMIT_UNEXPECTED_FILE",
-        message: "Nombre de campo de archivo no esperado.",
-      });
+    switch (err.code) {
+      case "LIMIT_FILE_SIZE":
+        return res.status(413).json({
+          error: "File too large",
+          code: "MULTER_LIMIT_FILE_SIZE",
+          message: "El archivo es muy grande. Tamaño máximo: 10MB.",
+        });
 
-    default:
-      return res.status(400).json({
-        error: "Upload error",
-        code: `MULTER_${err.code}`,
-        message: err.message,
-      });
+      case "LIMIT_UNEXPECTED_FILE":
+        return res.status(400).json({
+          error: "Unexpected file field",
+          code: "MULTER_LIMIT_UNEXPECTED_FILE",
+          message: "Nombre de campo de archivo no esperado.",
+        });
+
+      default:
+        return res.status(400).json({
+          error: "Upload error",
+          code: `MULTER_${err.code}`,
+          message: err.message,
+        });
+    }
   }
 
   if (err instanceof Error && err.message === "Invalid file type") {
