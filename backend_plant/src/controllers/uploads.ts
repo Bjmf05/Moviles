@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import multer from "multer";
 import { v4 as uuid } from "uuid";
-import { getConfig } from "../config/index.js";
 import { uploadUserImage } from "../services/supabase.js";
 
 const storage = multer.memoryStorage();
@@ -14,7 +13,10 @@ const upload = multer({
     if (allowed.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error("Invalid file type"));
+      const error = new Error(
+        `Invalid file type: ${file.mimetype}. Allowed types: ${allowed.join(", ")}`,
+      );
+      cb(error);
     }
   },
 });
@@ -47,7 +49,10 @@ export async function uploadImage(req: Request, res: Response): Promise<void> {
   }
 }
 
-export async function uploadImageBase64(req: Request, res: Response): Promise<void> {
+export async function uploadImageBase64(
+  req: Request,
+  res: Response,
+): Promise<void> {
   try {
     const uid = req.user?.uid;
     if (!uid) {

@@ -3,7 +3,10 @@ import { getFirestore } from "../services/firebase.js";
 
 const EVENTS_COLLECTION = "watering_events";
 
-export async function getCalendarMonth(req: Request, res: Response): Promise<void> {
+export async function getCalendarMonth(
+  req: Request,
+  res: Response,
+): Promise<void> {
   try {
     const uid = req.user?.uid;
     if (!uid) {
@@ -62,7 +65,9 @@ export async function getCalendarMonth(req: Request, res: Response): Promise<voi
       }
     });
 
-    const completedSet = new Set(completedDates.map((e) => `${e.plantId}_${e.date}`));
+    const completedSet = new Set(
+      completedDates.map((e) => `${e.plantId}_${e.date}`),
+    );
 
     const waterings: Array<{
       date: string;
@@ -73,10 +78,11 @@ export async function getCalendarMonth(req: Request, res: Response): Promise<voi
 
     for (const plant of plants) {
       const schedule = plant.wateringSchedule;
-      if (!schedule || !schedule.frequencyDays || !schedule.nextWateringDate) continue;
+      if (!schedule || !schedule.frequencyDays || !schedule.nextWateringDate)
+        continue;
 
       // Ir hacia atrás desde nextWateringDate hasta antes del mes
-      let start = new Date(schedule.nextWateringDate + "T12:00:00");
+      const start = new Date(schedule.nextWateringDate + "T12:00:00");
       while (start >= startOfMonth) {
         start.setDate(start.getDate() - schedule.frequencyDays);
       }
@@ -84,7 +90,11 @@ export async function getCalendarMonth(req: Request, res: Response): Promise<voi
       start.setDate(start.getDate() + schedule.frequencyDays);
 
       const end = new Date(year, month + 1, 0, 23, 59, 59);
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + schedule.frequencyDays)) {
+      for (
+        let d = new Date(start);
+        d <= end;
+        d.setDate(d.getDate() + schedule.frequencyDays)
+      ) {
         const dateStr = d.toISOString().split("T")[0];
         if (dateStr >= startDateStr) {
           waterings.push({

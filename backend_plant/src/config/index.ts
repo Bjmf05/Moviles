@@ -29,6 +29,7 @@ export interface Config {
   google: {
     androidClientId: string;
   };
+  jwt: { secret: string };
   storage: {
     uploadDir: string;
     maxFileSize: number;
@@ -38,12 +39,6 @@ export interface Config {
 
 function getEnv(key: string, fallback = ""): string {
   return process.env[key] || fallback;
-}
-
-function requireEnv(key: string): string {
-  const val = process.env[key];
-  if (!val) throw new Error(`Missing environment variable: ${key}`);
-  return val;
 }
 
 let _config: Config | null = null;
@@ -58,18 +53,18 @@ export function loadConfig(): Config {
       env: getEnv("NODE_ENV", "development"),
     },
     firebase: {
-      projectId: getEnv("EXPO_PUBLIC_FIREBASE_PROJECT_ID"),
+      projectId: getEnv("FIREBASE_PROJECT_ID"),
       clientEmail: getEnv("FIREBASE_CLIENT_EMAIL"),
       privateKey: getEnv("FIREBASE_PRIVATE_KEY"),
-      apiKey: getEnv("EXPO_PUBLIC_FIREBASE_API_KEY"),
-      authDomain: getEnv("EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN"),
-      storageBucket: getEnv("EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET"),
-      messagingSenderId: getEnv("EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID"),
-      appId: getEnv("EXPO_PUBLIC_FIREBASE_APP_ID"),
+      apiKey: getEnv("FIREBASE_API_KEY"),
+      authDomain: getEnv("FIREBASE_AUTH_DOMAIN"),
+      storageBucket: getEnv("FIREBASE_STORAGE_BUCKET"),
+      messagingSenderId: getEnv("FIREBASE_MESSAGING_SENDER_ID"),
+      appId: getEnv("FIREBASE_APP_ID"),
     },
     supabase: {
-      url: getEnv("EXPO_PUBLIC_SUPABASE_URL"),
-      anonKey: getEnv("EXPO_PUBLIC_SUPABASE_ANON_KEY"),
+      url: getEnv("SUPABASE_URL"),
+      anonKey: getEnv("SUPABASE_ANON_KEY"),
       serviceRoleKey: getEnv("SUPABASE_SERVICE_ROLE_KEY"),
       bucketName: "plant-images",
     },
@@ -77,18 +72,18 @@ export function loadConfig(): Config {
       apiKey: getEnv("PLANT_ID_API_KEY"),
     },
     libreTranslate: {
-      url: getEnv(
-        "EXPO_PUBLIC_LIBRETRANSLATE_URL",
-        "https://libretranslate.de/translate",
-      ),
+      url: getEnv("LIBRETRANSLATE_URL", "https://libretranslate.de/translate"),
     },
     google: {
-      androidClientId: getEnv("EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID"),
+      androidClientId: getEnv("GOOGLE_ANDROID_CLIENT_ID"),
     },
     storage: {
       uploadDir: getEnv("UPLOAD_DIR", "./uploads"),
       maxFileSize: parseInt(getEnv("MAX_FILE_SIZE", "10485760"), 10),
       allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
+    },
+    jwt: {
+      secret: getEnv("JWT_SECRET"),
     },
   };
 
@@ -98,14 +93,15 @@ export function loadConfig(): Config {
 export function requireValidConfig(): Config {
   const cfg = loadConfig();
 
-  if (!cfg.supabase.url) throw new Error("Missing EXPO_PUBLIC_SUPABASE_URL");
-  if (!cfg.supabase.anonKey)
-    throw new Error("Missing EXPO_PUBLIC_SUPABASE_ANON_KEY");
-  if (!cfg.plantId.apiKey)
-    throw new Error("Missing EXPO_PUBLIC_PLANT_ID_API_KEY");
+  if (!cfg.supabase.url) throw new Error("Missing SUPABASE_URL");
+  if (!cfg.supabase.anonKey) throw new Error("Missing SUPABASE_ANON_KEY");
+  if (!cfg.plantId.apiKey) throw new Error("Missing PLANT_ID_API_KEY");
   if (!cfg.google.androidClientId)
-    throw new Error("Missing EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID");
-
+    throw new Error("Missing GOOGLE_ANDROID_CLIENT_ID");
+  if (!cfg.jwt.secret) throw new Error("Missing JWT_SECRET");
+  if (!cfg.firebase.apiKey) throw new Error("Missing FIREBASE_API_KEY");
+  if (!cfg.firebase.clientEmail)
+    throw new Error("Missing FIREBASE_CLIENT_EMAIL");
   return cfg;
 }
 
@@ -134,5 +130,8 @@ export const config = {
   },
   get storage() {
     return loadConfig().storage;
+  },
+  get jwt() {
+    return loadConfig().jwt;
   },
 };

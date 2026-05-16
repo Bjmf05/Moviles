@@ -107,7 +107,7 @@ export async function loginUser(req: Request, res: Response): Promise<void> {
 
     try {
       await verifyPasswordWithFirebase(email, password);
-    } catch (e) {
+    } catch {
       try {
         const userRecord = await firebaseAuthService.auth.getUserByEmail(email);
         const token = generateToken({
@@ -124,7 +124,7 @@ export async function loginUser(req: Request, res: Response): Promise<void> {
           },
         });
         return;
-      } catch (inner) {
+      } catch {
         throw new Error("Invalid credentials");
       }
     }

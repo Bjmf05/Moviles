@@ -1,5 +1,5 @@
 import admin from "firebase-admin";
-import { getConfig, requireValidConfig } from "../config/index.js";
+import { requireValidConfig } from "../config/index.js";
 
 let db: admin.firestore.Firestore | null = null;
 let auth: admin.auth.Auth | null = null;
