@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { getFirestore } from "../services/firebase.js";
+import { logger } from "../utils/logger.js";
 
 const EVENTS_COLLECTION = "watering_events";
 
@@ -22,7 +23,10 @@ export async function markWatered(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const plant = plantDoc.data() as { userId: string; wateringSchedule?: { frequencyDays: number; nextWateringDate: string } };
+    const plant = plantDoc.data() as {
+      userId: string;
+      wateringSchedule?: { frequencyDays: number; nextWateringDate: string };
+    };
     if (plant.userId !== uid) {
       res.status(403).json({ error: "Forbidden" });
       return;
@@ -49,7 +53,7 @@ export async function markWatered(req: Request, res: Response): Promise<void> {
 
     res.json({ success: true, nextWateringDate: nextDate });
   } catch (error) {
-    console.error("Mark watered error:", error);
+    logger.error(error, "Mark watered error");
     res.status(500).json({ error: "Failed to mark watering" });
   }
 }
@@ -85,8 +89,10 @@ export async function editSchedule(req: Request, res: Response): Promise<void> {
     }
 
     const updateData: Record<string, unknown> = {};
-    if (frequencyDays !== undefined) updateData["wateringSchedule.frequencyDays"] = frequencyDays;
-    if (nextWateringDate !== undefined) updateData["wateringSchedule.nextWateringDate"] = nextWateringDate;
+    if (frequencyDays !== undefined)
+      updateData["wateringSchedule.frequencyDays"] = frequencyDays;
+    if (nextWateringDate !== undefined)
+      updateData["wateringSchedule.nextWateringDate"] = nextWateringDate;
 
     if (Object.keys(updateData).length === 0) {
       res.status(400).json({ error: "No fields to update" });
@@ -97,7 +103,7 @@ export async function editSchedule(req: Request, res: Response): Promise<void> {
 
     res.json({ success: true });
   } catch (error) {
-    console.error("Edit schedule error:", error);
+    logger.error(error, "Edit schedule error");
     res.status(500).json({ error: "Failed to edit schedule" });
   }
 }

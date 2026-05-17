@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { getFirestore } from "../services/firebase.js";
 import { deleteUserImage } from "../services/supabase.js";
+import { logger } from "../utils/logger.js";
 
 const PLANTS_COLLECTION = "plants";
 
@@ -120,7 +121,7 @@ export async function createPlant(req: Request, res: Response): Promise<void> {
       ...plantData,
     });
   } catch (error) {
-    console.error("Create plant error:", error);
+    logger.error(error, "Create plant error");
     res.status(500).json({ error: "Failed to create plant" });
   }
 }
@@ -147,7 +148,7 @@ export async function getPlants(req: Request, res: Response): Promise<void> {
 
     res.json({ plants });
   } catch (error) {
-    console.error("Get plants error:", error);
+    logger.error(error, "Get plants error");
     res.status(500).json({ error: "Failed to get plants" });
   }
 }
@@ -179,7 +180,7 @@ export async function getPlant(req: Request, res: Response): Promise<void> {
 
     res.json({ id: doc.id, ...plant });
   } catch (error) {
-    console.error("Get plant error:", error);
+    logger.error(error, "Get plant error");
     res.status(500).json({ error: "Failed to get plant" });
   }
 }
@@ -212,15 +213,22 @@ export async function updatePlant(req: Request, res: Response): Promise<void> {
     }
 
     const updateData: Record<string, unknown> = {};
-    if (updates.nombreComun !== undefined) updateData.nombreComun = updates.nombreComun;
-    if (updates.nombreCientifico !== undefined) updateData.nombreCientifico = updates.nombreCientifico;
-    if (updates.descripcion !== undefined) updateData.descripcion = updates.descripcion;
+    if (updates.nombreComun !== undefined)
+      updateData.nombreComun = updates.nombreComun;
+    if (updates.nombreCientifico !== undefined)
+      updateData.nombreCientifico = updates.nombreCientifico;
+    if (updates.descripcion !== undefined)
+      updateData.descripcion = updates.descripcion;
     if (updates.cuidados !== undefined) updateData.cuidados = updates.cuidados;
-    if (updates.toxicidad !== undefined) updateData.toxicidad = updates.toxicidad;
+    if (updates.toxicidad !== undefined)
+      updateData.toxicidad = updates.toxicidad;
     if (updates.imageUri !== undefined) updateData.imageUri = updates.imageUri;
     if (updates.notes !== undefined) updateData.notes = updates.notes;
 
-    if (updates.cuidados?.riego !== undefined && updates.cuidados.riego !== plant.cuidados.riego) {
+    if (
+      updates.cuidados?.riego !== undefined &&
+      updates.cuidados.riego !== plant.cuidados.riego
+    ) {
       const freq = parseWateringFrequency(updates.cuidados.riego);
       updateData["wateringSchedule.frequencyDays"] = freq;
       updateData["wateringSchedule.nextWateringDate"] = calcNextWatering(freq);
@@ -230,7 +238,7 @@ export async function updatePlant(req: Request, res: Response): Promise<void> {
 
     res.json({ success: true });
   } catch (error) {
-    console.error("Update plant error:", error);
+    logger.error(error, "Update plant error");
     res.status(500).json({ error: "Failed to update plant" });
   }
 }
@@ -266,7 +274,7 @@ export async function deletePlant(req: Request, res: Response): Promise<void> {
       try {
         await deleteUserImage(plant.imageUri);
       } catch (e) {
-        console.error("Failed to delete image:", e);
+        logger.error(e, "Failed to delete image");
       }
     }
 
@@ -274,7 +282,7 @@ export async function deletePlant(req: Request, res: Response): Promise<void> {
 
     res.json({ success: true, message: "Plant deleted" });
   } catch (error) {
-    console.error("Delete plant error:", error);
+    logger.error(error, "Delete plant error");
     res.status(500).json({ error: "Failed to delete plant" });
   }
 }

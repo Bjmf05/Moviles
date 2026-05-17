@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { PlantInfo } from "../types.js";
+import { logger } from "../utils/logger.js";
 
 const router = Router();
 
@@ -57,7 +58,9 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
 
   const apiKey = process.env.PLANT_ID_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: "PLANT_ID_API_KEY no configurada en el servidor" });
+    res
+      .status(500)
+      .json({ error: "PLANT_ID_API_KEY no configurada en el servidor" });
     return;
   }
 
@@ -77,7 +80,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
 
   if (!upstream.ok) {
     const errText = await upstream.text();
-    console.error("Plant.id error:", errText);
+    logger.error("Plant.id API error: %s - %s", upstream.status, errText);
     res.status(502).json({ error: `Error Plant.id: ${upstream.status}` });
     return;
   }

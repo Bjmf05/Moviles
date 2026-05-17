@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import multer from "multer";
 import { v4 as uuid } from "uuid";
 import { uploadUserImage } from "../services/supabase.js";
+import { logger } from "../utils/logger.js";
 
 const storage = multer.memoryStorage();
 
@@ -44,7 +45,7 @@ export async function uploadImage(req: Request, res: Response): Promise<void> {
       filename,
     });
   } catch (error) {
-    console.error("Upload error:", error);
+    logger.error(error, "Upload error");
     res.status(500).json({ error: "Failed to upload image" });
   }
 }
@@ -79,7 +80,7 @@ export async function uploadImageBase64(
       filename: name,
     });
   } catch (error) {
-    console.error("Upload error:", error);
+    logger.error(error, "Upload error");
     res.status(500).json({ error: "Failed to upload image" });
   }
 }

@@ -1,5 +1,6 @@
 import { ErrorRequestHandler } from "express";
 import multer from "multer";
+import { logger } from "../utils/logger.js";
 export const multerErrorHandler: ErrorRequestHandler = (
   err,
   req,
@@ -7,7 +8,7 @@ export const multerErrorHandler: ErrorRequestHandler = (
   next,
 ) => {
   if (err instanceof multer.MulterError) {
-    console.warn(`Multer error: ${err.code} - ${err.message}`);
+    logger.warn(`Multer error: ${err.code} - ${err.message}`);
 
     switch (err.code) {
       case "LIMIT_FILE_SIZE":

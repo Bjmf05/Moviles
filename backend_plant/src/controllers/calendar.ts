@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { getFirestore } from "../services/firebase.js";
+import { logger } from "../utils/logger.js";
 
 const EVENTS_COLLECTION = "watering_events";
 
@@ -118,7 +119,7 @@ export async function getCalendarMonth(
       })),
     });
   } catch (error) {
-    console.error("Calendar error:", error);
+    logger.error(error, "Calendar error:");
     res.status(500).json({ error: "Failed to get calendar" });
   }
 }

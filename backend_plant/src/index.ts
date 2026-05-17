@@ -12,6 +12,8 @@ import uploadsRouter from "./routes/uploads.js";
 import calendarRouter from "./routes/calendar.js";
 import { initFirebase } from "./services/firebase.js";
 import { initSupabase } from "./services/supabase.js";
+import { pinoHttp } from "pino-http";
+import { logger } from "./utils/logger.js";
 import helmet from "helmet";
 import {
   genericLimiter,
@@ -26,6 +28,7 @@ getConfig();
 
 const app = express();
 const PORT = process.env.PORT ?? 3000;
+app.use(pinoHttp({ logger }));
 
 app.use(express.json({ limit: "10mb" }));
 app.use(helmet());
@@ -53,7 +56,7 @@ app.use(
     res: express.Response,
     next: express.NextFunction,
   ) => {
-    console.error("Unhandled error:", err);
+    logger.error(err, "Unhandled error");
     res.status(500).json({ error: "Internal server error" });
   },
 );
@@ -63,10 +66,10 @@ async function start() {
     await initFirebase();
     await initSupabase();
     app.listen(PORT, () => {
-      console.info(` Server running on port ${PORT}`);
+      logger.info(`Server running on port ${PORT}`);
     });
   } catch (error) {
-    console.error("Failed to start server:", error);
+    logger.error(error, "Failed to start server");
     process.exit(1);
   }
 }

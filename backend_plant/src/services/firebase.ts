@@ -1,5 +1,6 @@
 import admin from "firebase-admin";
 import { requireValidConfig } from "../config/index.js";
+import { logger } from "../utils/logger.js";
 
 let db: admin.firestore.Firestore | null = null;
 let auth: admin.auth.Auth | null = null;
@@ -14,7 +15,7 @@ export async function initFirebase(): Promise<void> {
   const cfg = requireValidConfig();
 
   if (!cfg.firebase.projectId || !cfg.firebase.privateKey) {
-    console.warn("Firebase not configured - auth endpoints will not work");
+    logger.warn("Firebase not configured - auth endpoints will not work");
     return;
   }
 

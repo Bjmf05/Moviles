@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { getFirestore, firebaseAuthService } from "../services/firebase.js";
 import { generateToken, verifyToken } from "../services/auth.js";
 import { config } from "../config/index.js";
+import { logger } from "../utils/logger.js";
 
 const USERS_COLLECTION = "users";
 
@@ -90,7 +91,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       },
     });
   } catch (error: unknown) {
-    console.error("Error creating user:", error);
+    logger.error(error, "Error creating user");
     const message = error instanceof Error ? error.message : "Unknown error";
     res.status(500).json({ error: message });
   }
@@ -146,7 +147,7 @@ export async function loginUser(req: Request, res: Response): Promise<void> {
       },
     });
   } catch (error: unknown) {
-    console.error("Error logging in:", error);
+    logger.error(error, "Error logging in");
     res.status(401).json({ error: "Invalid credentials" });
   }
 }
@@ -195,7 +196,7 @@ export async function getUserProfile(
 
     res.json(userDoc.data());
   } catch (error: unknown) {
-    console.error("Error getting profile:", error);
+    logger.error(error, "Error getting profile");
     res.status(401).json({ error: "Invalid token" });
   }
 }
@@ -232,15 +233,12 @@ export async function updateUserProfile(
       .get();
     res.json(userDoc.data());
   } catch (error: unknown) {
-    console.error("Error updating profile:", error);
+    logger.error(error, "Error updating profile");
     res.status(500).json({ error: "Failed to update profile" });
   }
 }
 
-export async function googleLogin(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function googleLogin(req: Request, res: Response): Promise<void> {
   try {
     const { idToken } = req.body as { idToken: string };
 
@@ -253,22 +251,18 @@ export async function googleLogin(
 
     const uid = decoded.uid;
     const email = decoded.email || "";
-    const name =
-      decoded.name || (email.split("@")[0]) || "Usuario";
+    const name = decoded.name || email.split("@")[0] || "Usuario";
 
     const db = getFirestore();
     const userDoc = await db.collection(USERS_COLLECTION).doc(uid).get();
 
     if (!userDoc.exists) {
-      await db
-        .collection(USERS_COLLECTION)
-        .doc(uid)
-        .set({
-          uid,
-          email,
-          name,
-          createdAt: new Date().toISOString(),
-        });
+      await db.collection(USERS_COLLECTION).doc(uid).set({
+        uid,
+        email,
+        name,
+        createdAt: new Date().toISOString(),
+      });
     }
 
     const token = generateToken({ uid, email, name });
@@ -279,12 +273,16 @@ export async function googleLogin(
         uid,
         email,
         name,
-        birthdate: userDoc.exists ? (userDoc.data()?.birthdate as string | undefined) : undefined,
-        country: userDoc.exists ? (userDoc.data()?.country as string | undefined) : undefined,
+        birthdate: userDoc.exists
+          ? (userDoc.data()?.birthdate as string | undefined)
+          : undefined,
+        country: userDoc.exists
+          ? (userDoc.data()?.country as string | undefined)
+          : undefined,
       },
     });
   } catch (error: unknown) {
-    console.error("Error en Google login:", error);
+    logger.error(error, "Error en Google login");
     res.status(401).json({ error: "Invalid Firebase token" });
   }
 }
@@ -312,7 +310,7 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
 
     res.json({ message: "User deleted successfully" });
   } catch (error: unknown) {
-    console.error("Error deleting user:", error);
+    logger.error(error, "Error deleting user");
     res.status(500).json({ error: "Failed to delete user" });
   }
 }
