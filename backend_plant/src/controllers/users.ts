@@ -237,6 +237,58 @@ export async function updateUserProfile(
   }
 }
 
+export async function googleLogin(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  try {
+    const { idToken } = req.body as { idToken: string };
+
+    if (!idToken) {
+      res.status(400).json({ error: "idToken is required" });
+      return;
+    }
+
+    const decoded = await firebaseAuthService.auth.verifyIdToken(idToken);
+
+    const uid = decoded.uid;
+    const email = decoded.email || "";
+    const name =
+      decoded.name || (email.split("@")[0]) || "Usuario";
+
+    const db = getFirestore();
+    const userDoc = await db.collection(USERS_COLLECTION).doc(uid).get();
+
+    if (!userDoc.exists) {
+      await db
+        .collection(USERS_COLLECTION)
+        .doc(uid)
+        .set({
+          uid,
+          email,
+          name,
+          createdAt: new Date().toISOString(),
+        });
+    }
+
+    const token = generateToken({ uid, email, name });
+
+    res.json({
+      token,
+      user: {
+        uid,
+        email,
+        name,
+        birthdate: userDoc.exists ? (userDoc.data()?.birthdate as string | undefined) : undefined,
+        country: userDoc.exists ? (userDoc.data()?.country as string | undefined) : undefined,
+      },
+    });
+  } catch (error: unknown) {
+    console.error("Error en Google login:", error);
+    res.status(401).json({ error: "Invalid Firebase token" });
+  }
+}
+
 export async function deleteUser(req: Request, res: Response): Promise<void> {
   try {
     const authHeader = req.headers.authorization;

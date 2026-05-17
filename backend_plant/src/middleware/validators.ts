@@ -206,6 +206,14 @@ export const validateUploadBase64 = [
 /**
  * Validadores para riego
  */
+export const validateGoogleLogin = [
+  body("idToken")
+    .notEmpty()
+    .withMessage("idToken es obligatorio")
+    .isString()
+    .withMessage("idToken debe ser un string"),
+];
+
 export const validateCreateWatering = [
   body("frequencyDays")
     .isInt({ min: 1, max: 365 })

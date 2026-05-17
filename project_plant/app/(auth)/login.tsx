@@ -4,6 +4,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
+import FloatingLeavesLayer from "@/components/FloatingLeavesLayer";
+import AnimatedButton from "@/components/AnimatedButton";
+import PulsingLogo from "@/components/PulsingLogo";
 import {
   Animated,
   Dimensions,
@@ -16,12 +19,13 @@ import {
   View,
 } from "react-native";
 import { z } from "zod";
-import InputText from "../../components/InputText";
-import Toast from "../../components/Toast";
+import { InputText } from "../../components/InputText";
+import { Toast } from "../../components/Toast";
 import { useGoogleAuth } from "../../hooks/useGoogleAuth";
 import { useAuth } from "../../context/AuthContext";
+import { AuthUser } from "../../lib/api";
 
-const { width, height } = Dimensions.get("window");
+const { height } = Dimensions.get("window");
 
 type LoginForm = {
   email: string;
@@ -32,214 +36,6 @@ const loginSchema = z.object({
   email: z.string().email("El correo no tiene un formato valido."),
   password: z.string().min(1, "La contraseña es obligatoria."),
 });
-
-// Componente de hoja flotante animada
-const FloatingLeaf = ({
-  delay,
-  startX,
-  duration,
-  size,
-  rotation,
-}: {
-  delay: number;
-  startX: number;
-  duration: number;
-  size: number;
-  rotation: number;
-}) => {
-  const translateY = useRef(new Animated.Value(-100)).current;
-  const translateX = useRef(new Animated.Value(startX)).current;
-  const rotate = useRef(new Animated.Value(0)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const animate = () => {
-      translateY.setValue(-100);
-      translateX.setValue(startX);
-      rotate.setValue(0);
-      opacity.setValue(0);
-
-      Animated.parallel([
-        Animated.timing(translateY, {
-          toValue: height + 100,
-          duration: duration,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        }),
-        Animated.sequence([
-          Animated.timing(opacity, {
-            toValue: 0.7,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(opacity, {
-            toValue: 0.7,
-            duration: duration - 2000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(opacity, {
-            toValue: 0,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.timing(translateX, {
-          toValue: startX + (Math.random() - 0.5) * 100,
-          duration: duration,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(rotate, {
-          toValue: rotation,
-          duration: duration,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        }),
-      ]).start(() => animate());
-    };
-
-    const timeout = setTimeout(animate, delay);
-    return () => clearTimeout(timeout);
-  }, []);
-
-  const rotateInterpolate = rotate.interpolate({
-    inputRange: [0, 360],
-    outputRange: ["0deg", "360deg"],
-  });
-
-  return (
-    <Animated.View
-      style={[
-        styles.leaf,
-        {
-          width: size,
-          height: size,
-          transform: [
-            { translateY },
-            { translateX },
-            { rotate: rotateInterpolate },
-          ],
-          opacity,
-        },
-      ]}
-    >
-      <Text style={{ fontSize: size * 0.8 }}>🍃</Text>
-    </Animated.View>
-  );
-};
-
-// Componente de pulso para el logo
-const PulsingLogo = () => {
-  const scale = useRef(new Animated.Value(1)).current;
-  const glow = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.parallel([
-          Animated.timing(scale, {
-            toValue: 1.1,
-            duration: 2000,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(glow, {
-            toValue: 1,
-            duration: 2000,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.parallel([
-          Animated.timing(scale, {
-            toValue: 1,
-            duration: 2000,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(glow, {
-            toValue: 0,
-            duration: 2000,
-            useNativeDriver: true,
-          }),
-        ]),
-      ]),
-    ).start();
-  }, []);
-
-  return (
-    <Animated.View style={[styles.logoContainer, { transform: [{ scale }] }]}>
-      <View style={styles.logoGlow}>
-        <Text style={styles.logoEmoji}>🌿</Text>
-      </View>
-    </Animated.View>
-  );
-};
-
-// Botón animado
-const AnimatedButton = ({
-  onPress,
-  loading,
-  children,
-  style,
-  textStyle,
-}: {
-  onPress: () => void;
-  loading?: boolean;
-  children: React.ReactNode;
-  style?: any;
-  textStyle?: any;
-}) => {
-  const scale = useRef(new Animated.Value(1)).current;
-  const shimmer = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.timing(shimmer, {
-        toValue: 1,
-        duration: 2000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      }),
-    ).start();
-  }, []);
-
-  const handlePressIn = () => {
-    Animated.spring(scale, {
-      toValue: 0.95,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scale, {
-      toValue: 1,
-      friction: 3,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  return (
-    <Animated.View style={{ transform: [{ scale }] }}>
-      <Pressable
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        disabled={loading}
-        style={[styles.btn, style]}
-      >
-        <LinearGradient
-          colors={["#2d6a4f", "#40916c", "#2d6a4f"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.btnGradient}
-        >
-          <Text style={[styles.btnText, textStyle]}>{children}</Text>
-        </LinearGradient>
-      </Pressable>
-    </Animated.View>
-  );
-};
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
@@ -259,8 +55,14 @@ export default function Login() {
   const formSlide = useRef(new Animated.Value(30)).current;
   const formFade = useRef(new Animated.Value(0)).current;
 
-  const { authGoogle, request } = useGoogleAuth();
-  const { login } = useAuth();
+  const { login, setAuthState } = useAuth();
+
+  const onGoogleSuccess = async (result: { user: AuthUser; token: string }) => {
+    await setAuthState(result.user, result.token);
+    router.replace("/(tabs)");
+  };
+
+  const { authGoogle, request } = useGoogleAuth(onGoogleSuccess);
   const { control, handleSubmit } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
@@ -305,6 +107,19 @@ export default function Login() {
   };
 
   const getLoginErrorMessage = (error: any) => {
+    const message = error?.message as string | undefined;
+    if (message) {
+      const lower = message.toLowerCase();
+      if (lower.includes("invalid credentials")) {
+        return "Correo o contraseña incorrectos.";
+      }
+      if (lower.includes("network") || lower.includes("fetch")) {
+        return "Sin conexion. Revisa tu internet e intenta de nuevo.";
+      }
+      if (lower.includes("too many requests")) {
+        return "Demasiados intentos. Intenta de nuevo mas tarde.";
+      }
+    }
     const code = error?.code as string | undefined;
     switch (code) {
       case "auth/user-not-found":
@@ -335,16 +150,6 @@ export default function Login() {
     }
   };
 
-  // Generar hojas flotantes
-  const leaves = Array.from({ length: 8 }, (_, i) => ({
-    id: i,
-    delay: i * 1500,
-    startX: Math.random() * width,
-    duration: 8000 + Math.random() * 4000,
-    size: 20 + Math.random() * 20,
-    rotation: 360 + Math.random() * 720,
-  }));
-
   return (
     <View style={styles.container}>
       {/* Fondo con gradiente */}
@@ -356,9 +161,7 @@ export default function Login() {
       />
 
       {/* Hojas flotantes */}
-      {leaves.map((leaf) => (
-        <FloatingLeaf key={leaf.id} {...leaf} />
-      ))}
+      <FloatingLeavesLayer count={6} />
 
       {/* Formas decorativas */}
       <View style={styles.decorCircle1} />
@@ -493,10 +296,6 @@ const styles = StyleSheet.create({
   gradient: {
     ...StyleSheet.absoluteFillObject,
   },
-  leaf: {
-    position: "absolute",
-    zIndex: 1,
-  },
   decorCircle1: {
     position: "absolute",
     top: -100,
@@ -534,25 +333,6 @@ const styles = StyleSheet.create({
   header: {
     alignItems: "center",
     marginBottom: 24,
-  },
-  logoContainer: {
-    marginBottom: 8,
-  },
-  logoGlow: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#2d6a4f",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  logoEmoji: {
-    fontSize: 40,
   },
   appName: {
     fontSize: 36,

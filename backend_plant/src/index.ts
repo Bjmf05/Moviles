@@ -46,10 +46,17 @@ app.get("/health", (_req, res) => {
 
 app.use(multerErrorHandler);
 
-app.use((err: Error, req: express.Request, res: express.Response) => {
-  console.error("Unhandled error:", err);
-  res.status(500).json({ error: "Internal server error" });
-});
+app.use(
+  (
+    err: Error,
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+  ) => {
+    console.error("Unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  },
+);
 
 async function start() {
   try {

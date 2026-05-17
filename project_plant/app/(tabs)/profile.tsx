@@ -1,7 +1,6 @@
 import { useCamera } from "@/hooks/useCamera";
 import { usePlants } from "@/lib/plants";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Picker } from "@react-native-picker/picker";
 import { BlurView } from "expo-blur";
 import { CameraView } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
@@ -21,6 +20,7 @@ import {
   View,
 } from "react-native";
 import { z } from "zod";
+import { DatePickerField } from "../../components/DatePickerField";
 import { InputText } from "../../components/InputText";
 import { Toast } from "../../components/Toast";
 import { useAuth } from "../../context/AuthContext";
@@ -260,10 +260,6 @@ export default function Profile() {
   const { uploadImage } = usePlants();
   const [profile, setProfile] = useState<any>(null);
   const [editing, setEditing] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [tempYear, setTempYear] = useState(2000);
-  const [tempMonth, setTempMonth] = useState(0);
-  const [tempDay, setTempDay] = useState(1);
   const [showCameraOptions, setShowCameraOptions] = useState(false);
   const [showProfilePhoto, setShowProfilePhoto] = useState(false);
   const [showPhotoPreview, setShowPhotoPreview] = useState(false);
@@ -304,7 +300,7 @@ export default function Profile() {
         birthdate: data?.birthdate || "",
         country: data?.country || "",
       });
-    } catch (e) {
+    } catch {
       setProfile({
         name: user.name || "",
         email: user.email || "",
@@ -450,32 +446,6 @@ export default function Profile() {
       year: "numeric",
     });
 
-  const getDaysInMonth = (year: number, month: number) =>
-    new Date(year, month + 1, 0).getDate();
-
-  const getMonthStartOffset = (year: number, month: number) => {
-    const dayOfWeek = new Date(year, month, 1).getDay();
-    return dayOfWeek;
-  };
-
-  const monthLabels = [
-    "Enero",
-    "Febrero",
-    "Marzo",
-    "Abril",
-    "Mayo",
-    "Junio",
-    "Julio",
-    "Agosto",
-    "Septiembre",
-    "Octubre",
-    "Noviembre",
-    "Diciembre",
-  ];
-
-  const years = Array.from({ length: 151 }, (_, i) => 2025 - i);
-  const weekDays = ["D", "L", "M", "M", "J", "V", "S"];
-
   const getDisplayDate = (value?: string) => {
     if (!value) return "";
     const parsed = new Date(value);
@@ -560,196 +530,13 @@ export default function Profile() {
                     control={control}
                     name="birthdate"
                     render={({ field: { onChange, value }, fieldState }) => (
-                      <>
-                        <Text style={styles.dateLabel}>
-                          Fecha de nacimiento
-                        </Text>
-                        <TouchableOpacity
-                          style={styles.dateInput}
-                          onPress={() => {
-                            const baseDate = value
-                              ? new Date(value)
-                              : new Date(2000, 0, 1);
-                            const safeDate = Number.isNaN(baseDate.getTime())
-                              ? new Date(2000, 0, 1)
-                              : baseDate;
-                            setTempYear(safeDate.getFullYear());
-                            setTempMonth(safeDate.getMonth());
-                            setTempDay(safeDate.getDate());
-                            setShowDatePicker(true);
-                          }}
-                        >
-                          <Text style={styles.dateIcon}>📅</Text>
-                          <Text
-                            style={
-                              value ? styles.dateText : styles.datePlaceholder
-                            }
-                          >
-                            {value
-                              ? getDisplayDate(value)
-                              : "Selecciona una fecha"}
-                          </Text>
-                        </TouchableOpacity>
-                        {fieldState.error?.message ? (
-                          <Text style={styles.dateError}>
-                            {fieldState.error.message}
-                          </Text>
-                        ) : null}
-                        {showDatePicker && (
-                          <Modal
-                            transparent
-                            animationType="fade"
-                            visible={showDatePicker}
-                            onRequestClose={() => setShowDatePicker(false)}
-                          >
-                            <View style={styles.modalBackdrop}>
-                              <BlurView
-                                intensity={90}
-                                tint="light"
-                                style={styles.modalSheet}
-                              >
-                                <Text style={styles.modalTitle}>
-                                  Selecciona tu fecha de nacimiento
-                                </Text>
-                                <View style={styles.pickerRow}>
-                                  <Picker
-                                    style={styles.picker}
-                                    selectedValue={tempMonth}
-                                    onValueChange={(nextMonth) => {
-                                      const maxDay = getDaysInMonth(
-                                        tempYear,
-                                        nextMonth,
-                                      );
-                                      setTempMonth(nextMonth);
-                                      setTempDay((current) =>
-                                        current > maxDay ? maxDay : current,
-                                      );
-                                    }}
-                                  >
-                                    {monthLabels.map((label, index) => (
-                                      <Picker.Item
-                                        key={label}
-                                        label={label}
-                                        value={index}
-                                      />
-                                    ))}
-                                  </Picker>
-                                  <Picker
-                                    style={styles.picker}
-                                    selectedValue={tempYear}
-                                    onValueChange={(nextYear) => {
-                                      const maxDay = getDaysInMonth(
-                                        nextYear,
-                                        tempMonth,
-                                      );
-                                      setTempYear(nextYear);
-                                      setTempDay((current) =>
-                                        current > maxDay ? maxDay : current,
-                                      );
-                                    }}
-                                  >
-                                    {years.map((year) => (
-                                      <Picker.Item
-                                        key={year}
-                                        label={`${year}`}
-                                        value={year}
-                                      />
-                                    ))}
-                                  </Picker>
-                                </View>
-                                <View style={styles.calendarHeader}>
-                                  {weekDays.map((day, index) => (
-                                    <Text
-                                      key={`${day}-${index}`}
-                                      style={styles.calendarHeaderText}
-                                    >
-                                      {day}
-                                    </Text>
-                                  ))}
-                                </View>
-                                <View style={styles.calendarGrid}>
-                                  {Array.from({
-                                    length:
-                                      getMonthStartOffset(tempYear, tempMonth) +
-                                      getDaysInMonth(tempYear, tempMonth),
-                                  }).map((_, index) => {
-                                    const offset = getMonthStartOffset(
-                                      tempYear,
-                                      tempMonth,
-                                    );
-                                    const dayNumber = index - offset + 1;
-                                    if (dayNumber < 1) {
-                                      return (
-                                        <View
-                                          key={`empty-${index}`}
-                                          style={styles.dayCell}
-                                        />
-                                      );
-                                    }
-
-                                    const isSelected = dayNumber === tempDay;
-
-                                    return (
-                                      <TouchableOpacity
-                                        key={dayNumber}
-                                        style={[
-                                          styles.dayCell,
-                                          isSelected && styles.dayCellSelected,
-                                        ]}
-                                        onPress={() => setTempDay(dayNumber)}
-                                      >
-                                        <Text
-                                          style={[
-                                            styles.dayText,
-                                            isSelected &&
-                                              styles.dayTextSelected,
-                                          ]}
-                                        >
-                                          {dayNumber}
-                                        </Text>
-                                      </TouchableOpacity>
-                                    );
-                                  })}
-                                </View>
-                                <View style={styles.modalActions}>
-                                  <TouchableOpacity
-                                    style={styles.modalBtn}
-                                    onPress={() => setShowDatePicker(false)}
-                                  >
-                                    <Text style={styles.modalBtnText}>
-                                      Cancelar
-                                    </Text>
-                                  </TouchableOpacity>
-                                  <TouchableOpacity
-                                    style={[
-                                      styles.modalBtn,
-                                      styles.modalBtnPrimary,
-                                    ]}
-                                    onPress={() => {
-                                      const newDate = new Date(
-                                        tempYear,
-                                        tempMonth,
-                                        tempDay,
-                                      );
-                                      onChange(newDate.toISOString());
-                                      setShowDatePicker(false);
-                                    }}
-                                  >
-                                    <Text
-                                      style={[
-                                        styles.modalBtnText,
-                                        styles.modalBtnTextPrimary,
-                                      ]}
-                                    >
-                                      Confirmar
-                                    </Text>
-                                  </TouchableOpacity>
-                                </View>
-                              </BlurView>
-                            </View>
-                          </Modal>
-                        )}
-                      </>
+                      <DatePickerField
+                        label="Fecha de nacimiento"
+                        value={value}
+                        onChange={onChange}
+                        error={fieldState.error?.message}
+                        placeholder="Selecciona una fecha"
+                      />
                     )}
                   />
                   <InputText
@@ -1170,46 +957,6 @@ const styles = StyleSheet.create({
     color: "#52796f",
     marginBottom: 6,
     textTransform: "uppercase",
-  },
-  dateInput: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1.5,
-    borderColor: "#d8f3dc",
-    marginBottom: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  dateIcon: {
-    fontSize: 18,
-  },
-  dateText: {
-    fontSize: 15,
-    color: "#1b4332",
-  },
-  datePlaceholder: {
-    fontSize: 15,
-    color: "#aaa",
-  },
-  dateError: {
-    fontSize: 12,
-    color: "#e63946",
-    marginTop: -10,
-    marginBottom: 12,
-    marginLeft: 4,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
-    justifyContent: "flex-end",
-  },
-  modalSheet: {
-    backgroundColor: "rgba(247, 255, 244, 0.95)",
-    padding: 20,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
   },
   confirmBackdrop: {
     flex: 1,

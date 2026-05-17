@@ -1,7 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
-import { doc, updateDoc } from "firebase/firestore";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
@@ -19,8 +18,9 @@ import {
 import { z } from "zod";
 import { InputText } from "../../components/InputText";
 import { Toast } from "../../components/Toast";
+import { api } from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
-import { usePlants } from "../../lib/plants";
+import { SavedPlant, usePlants } from "../../lib/plants";
 import { resolveLocalImageMap } from "../../lib/localCache";
 
 const plantSchema = z.object({
@@ -157,7 +157,10 @@ const PlantCard = ({
         onPressOut={handlePressOut}
         style={styles.plantCard}
       >
-        <Image source={{ uri: localUri || item.imageUri }} style={styles.plantImage} />
+        <Image
+          source={{ uri: localUri || item.imageUri }}
+          style={styles.plantImage}
+        />
         <View style={styles.plantInfo}>
           <Text style={styles.plantName}>{item.nombreComun}</Text>
           <Text style={styles.plantScientific}>{item.nombreCientifico}</Text>
@@ -243,7 +246,7 @@ const EmptyState = () => {
 };
 
 export default function Garden() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { getUserPlants, deletePlant: removePlant } = usePlants();
   const [plants, setPlants] = useState<SavedPlant[]>([]);
   const [selected, setSelected] = useState<SavedPlant | null>(null);
@@ -374,9 +377,9 @@ export default function Garden() {
   };
 
   const onSubmitEdit = async (data: PlantForm) => {
-    if (!selected?.id) return;
+    if (!selected?.id || !token) return;
     try {
-      await updateDoc(doc(db, "plants", selected.id), {
+      await api.plants.update(token, selected.id, {
         nombreComun: data.nombreComun,
         nombreCientifico: data.nombreCientifico,
         descripcion: data.descripcion,
@@ -439,7 +442,10 @@ export default function Garden() {
       >
         <View style={styles.headerRow}>
           <Text style={styles.title}>Mi Jardin</Text>
-          <Pressable style={styles.calendarBtn} onPress={() => router.push("/calendar")}>
+          <Pressable
+            style={styles.calendarBtn}
+            onPress={() => router.push("/calendar")}
+          >
             <Text style={styles.calendarBtnText}>📅</Text>
           </Pressable>
         </View>
@@ -532,7 +538,9 @@ export default function Garden() {
             {selected && (
               <>
                 <Image
-                  source={{ uri: localImages[selected.id] || selected.imageUri }}
+                  source={{
+                    uri: localImages[selected.id] || selected.imageUri,
+                  }}
                   style={styles.modalImage}
                 />
                 <View style={styles.modalHeader}>

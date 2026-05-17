@@ -102,6 +102,12 @@ export const api = {
         body: data,
         token,
       }),
+
+    googleLogin: (idToken: string) =>
+      apiRequest<{ user: AuthUser; token: string }>("/api/auth/google", {
+        method: "POST",
+        body: { idToken },
+      }),
   },
 
   plants: {

@@ -4,6 +4,7 @@ import {
   validateCreateUser,
   validateLogin,
   validateUpdateProfile,
+  validateGoogleLogin,
   handleValidationErrors,
 } from "../middleware/validators.js";
 
@@ -20,6 +21,12 @@ router.post(
   validateLogin,
   handleValidationErrors,
   usersController.loginUser,
+);
+router.post(
+  "/google",
+  validateGoogleLogin,
+  handleValidationErrors,
+  usersController.googleLogin,
 );
 router.get(
   "/profile",

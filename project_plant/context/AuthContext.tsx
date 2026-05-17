@@ -25,6 +25,7 @@ type AuthContextType = {
   ) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<AuthUser>) => Promise<void>;
+  setAuthState: (user: AuthUser, token: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -35,6 +36,7 @@ const AuthContext = createContext<AuthContextType>({
   register: async () => {},
   logout: async () => {},
   updateProfile: async () => {},
+  setAuthState: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -128,9 +130,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [token, user],
   );
 
+  const setAuthState = useCallback(
+    async (userData: AuthUser, authToken: string) => {
+      await AsyncStorage.setItem(TOKEN_KEY, authToken);
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
+      setToken(authToken);
+      setUser(userData);
+    },
+    [],
+  );
+
   return (
     <AuthContext.Provider
-      value={{ user, token, loading, login, register, logout, updateProfile }}
+      value={{ user, token, loading, login, register, logout, updateProfile, setAuthState }}
     >
       {children}
     </AuthContext.Provider>

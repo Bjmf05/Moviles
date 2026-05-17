@@ -12,101 +12,9 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "../../context/AuthContext";
+import FloatingLeavesLayer from "@/components/FloatingLeavesLayer";
 
 const { width, height } = Dimensions.get("window");
-
-// Componente de hoja flotante sutil
-const FloatingLeaf = ({
-  delay,
-  startX,
-  duration,
-  size,
-  emoji,
-}: {
-  delay: number;
-  startX: number;
-  duration: number;
-  size: number;
-  emoji: string;
-}) => {
-  const translateY = useRef(new Animated.Value(-50)).current;
-  const translateX = useRef(new Animated.Value(startX)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-  const rotate = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const animate = () => {
-      translateY.setValue(-50);
-      translateX.setValue(startX);
-      opacity.setValue(0);
-      rotate.setValue(0);
-
-      Animated.parallel([
-        Animated.timing(translateY, {
-          toValue: height + 50,
-          duration: duration,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        }),
-        Animated.sequence([
-          Animated.timing(opacity, {
-            toValue: 0.4,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(opacity, {
-            toValue: 0.4,
-            duration: duration - 3000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(opacity, {
-            toValue: 0,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.timing(translateX, {
-          toValue: startX + (Math.random() - 0.5) * 60,
-          duration: duration,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(rotate, {
-          toValue: 360,
-          duration: duration,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        }),
-      ]).start(() => animate());
-    };
-
-    const timeout = setTimeout(animate, delay);
-    return () => clearTimeout(timeout);
-  }, []);
-
-  const rotateInterpolate = rotate.interpolate({
-    inputRange: [0, 360],
-    outputRange: ["0deg", "360deg"],
-  });
-
-  return (
-    <Animated.View
-      style={[
-        styles.leaf,
-        {
-          transform: [
-            { translateY },
-            { translateX },
-            { rotate: rotateInterpolate },
-          ],
-          opacity,
-        },
-      ]}
-    >
-      <Text style={{ fontSize: size }}>{emoji}</Text>
-    </Animated.View>
-  );
-};
 
 // Tarjeta animada con efecto press
 const AnimatedCard = ({
@@ -168,8 +76,14 @@ const DailyTip = () => {
     { icon: "💧", tip: "Riega tus plantas por la manana para evitar hongos" },
     { icon: "☀️", tip: "La luz indirecta es ideal para la mayoria de plantas" },
     { icon: "🌡️", tip: "Evita cambios bruscos de temperatura en tus plantas" },
-    { icon: "🪴", tip: "Rota tus plantas cada semana para un crecimiento uniforme" },
-    { icon: "🌿", tip: "Limpia las hojas regularmente para mejor fotosintesis" },
+    {
+      icon: "🪴",
+      tip: "Rota tus plantas cada semana para un crecimiento uniforme",
+    },
+    {
+      icon: "🌿",
+      tip: "Limpia las hojas regularmente para mejor fotosintesis",
+    },
   ];
 
   const todayTip = tips[new Date().getDay() % tips.length];
@@ -250,17 +164,6 @@ export default function Home() {
     ]).start();
   }, []);
 
-  // Hojas flotantes sutiles
-  const leafEmojis = ["🍃", "🌿", "☘️"];
-  const leaves = Array.from({ length: 4 }, (_, i) => ({
-    id: i,
-    delay: i * 3000,
-    startX: Math.random() * width,
-    duration: 12000 + Math.random() * 5000,
-    size: 16 + Math.random() * 10,
-    emoji: leafEmojis[i % leafEmojis.length],
-  }));
-
   return (
     <View style={styles.container}>
       {/* Fondo con gradiente suave */}
@@ -272,9 +175,7 @@ export default function Home() {
       />
 
       {/* Hojas flotantes sutiles */}
-      {leaves.map((leaf) => (
-        <FloatingLeaf key={leaf.id} {...leaf} />
-      ))}
+      <FloatingLeavesLayer count={6} />
 
       {/* Circulos decorativos */}
       <View style={styles.decorCircle1} />
@@ -296,7 +197,9 @@ export default function Home() {
           ]}
         >
           <Text style={styles.greeting}>Hola, {name}</Text>
-          <Text style={styles.subtitle}>Que planta quieres identificar hoy?</Text>
+          <Text style={styles.subtitle}>
+            Que planta quieres identificar hoy?
+          </Text>
         </Animated.View>
 
         {/* Hero card - Identificar planta */}
@@ -306,10 +209,7 @@ export default function Home() {
             transform: [{ scale: heroScale }],
           }}
         >
-          <AnimatedCard
-            onPress={() => router.push("/(tabs)/camera")}
-            gradient
-          >
+          <AnimatedCard onPress={() => router.push("/(tabs)/camera")} gradient>
             <View style={styles.heroIconContainer}>
               <Text style={styles.heroIcon}>📷</Text>
             </View>
@@ -409,10 +309,6 @@ const styles = StyleSheet.create({
   },
   gradient: {
     ...StyleSheet.absoluteFillObject,
-  },
-  leaf: {
-    position: "absolute",
-    zIndex: 1,
   },
   decorCircle1: {
     position: "absolute",
