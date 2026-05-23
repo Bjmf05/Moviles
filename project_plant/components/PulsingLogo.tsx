@@ -1,7 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Animated } from "react-native/Libraries/Animated/Animated";
-import { Easing } from "react-native/Libraries/Animated/Easing";
-import { StyleSheet, View, Text } from "react-native";
+import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 export default function PulsingLogo() {
   const scale = useRef(new Animated.Value(1)).current;
   const glow = useRef(new Animated.Value(0)).current;

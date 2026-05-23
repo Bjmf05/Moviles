@@ -147,7 +147,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
       temperatura: "15°C – 30°C",
     },
     toxicidad: {
-      esToxica: !!toxicRaw,
+      esToxica: toxicRaw ? !/^non-toxic/i.test(toxicRaw) : false,
       detalle: toxicTraducido ?? "Sin información de toxicidad.",
     },
   };

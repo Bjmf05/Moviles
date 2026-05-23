@@ -384,6 +384,7 @@ export default function Garden() {
         nombreCientifico: data.nombreCientifico,
         descripcion: data.descripcion,
         notes: data.notes ?? "",
+        isPublic: selected.isPublic,
         cuidados: {
           riego: data["cuidados.riego"],
           luz: data["cuidados.luz"],
@@ -607,6 +608,30 @@ export default function Garden() {
                       placeholder="Notas personales..."
                       inputProps={{ multiline: true, numberOfLines: 2 }}
                     />
+
+                    <Pressable
+                      style={styles.shareToggle}
+                      onPress={() => {
+                        if (!selected) return;
+                        const newPublic = !selected.isPublic;
+                        const updated = { ...selected, isPublic: newPublic };
+                        setSelected(updated);
+                      }}
+                    >
+                      <Text style={styles.shareToggleIcon}>
+                        {selected?.isPublic ? "🌍" : "🔒"}
+                      </Text>
+                      <View style={styles.shareToggleInfo}>
+                        <Text style={styles.shareToggleLabel}>
+                          Compartir en Explorar
+                        </Text>
+                        <Text style={styles.shareToggleDesc}>
+                          {selected?.isPublic
+                            ? "Tu planta sera visible para otros usuarios"
+                            : "Solo tu podras ver esta planta"}
+                        </Text>
+                      </View>
+                    </Pressable>
 
                     <Pressable
                       style={[styles.saveBtn, isSubmitting && { opacity: 0.7 }]}
@@ -1004,6 +1029,33 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#1b4332",
     lineHeight: 21,
+  },
+  shareToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 8,
+    borderWidth: 1.5,
+    borderColor: "#d8f3dc",
+    gap: 12,
+  },
+  shareToggleIcon: {
+    fontSize: 24,
+  },
+  shareToggleInfo: {
+    flex: 1,
+  },
+  shareToggleLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1b4332",
+  },
+  shareToggleDesc: {
+    fontSize: 12,
+    color: "#74c69d",
+    marginTop: 2,
   },
   saveBtn: {
     marginTop: 12,

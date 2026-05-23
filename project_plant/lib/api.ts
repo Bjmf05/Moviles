@@ -71,6 +71,9 @@ export interface Plant {
   imageUri: string;
   notes: string;
   savedAt: string;
+  isPublic?: boolean;
+  ownerName?: string;
+  ownerPhoto?: string;
 }
 
 export const api = {
@@ -111,13 +114,39 @@ export const api = {
   },
 
   plants: {
+    explore: (params: {
+      cursor?: string;
+      limit?: number;
+      search?: string;
+      luz?: string;
+      riego?: string;
+      toxica?: string;
+    }) => {
+      const query = new URLSearchParams();
+      if (params.cursor) query.set("cursor", params.cursor);
+      if (params.limit) query.set("limit", String(params.limit));
+      if (params.search) query.set("search", params.search);
+      if (params.luz) query.set("luz", params.luz);
+      if (params.riego) query.set("riego", params.riego);
+      if (params.toxica) query.set("toxica", params.toxica);
+      const qs = query.toString();
+      return apiRequest<{
+        plants: Plant[];
+        hasMore: boolean;
+        nextCursor: string | null;
+      }>(`/api/plants/explore${qs ? `?${qs}` : ""}`);
+    },
+
     getAll: (token: string) =>
       apiRequest<{ plants: Plant[] }>("/api/plants", { token }),
 
     get: (token: string, id: string) =>
       apiRequest<{ plant: Plant }>(`/api/plants/${id}`, { token }),
 
-    create: (token: string, plant: Omit<Plant, "id" | "userId" | "savedAt">) =>
+    create: (
+      token: string,
+      plant: Omit<Plant, "id" | "userId" | "savedAt">,
+    ) =>
       apiRequest<Plant>("/api/plants", {
         method: "POST",
         body: plant,

@@ -1,101 +1,53 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
   Dimensions,
   Easing,
   FlatList,
+  Image,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import PlantDetailModal from "../../components/PlantDetailModal";
+import { api, Plant } from "../../lib/api";
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 
-const POPULAR_PLANTS = [
-  {
-    id: "1",
-    emoji: "🌵",
-    name: "Cactus",
-    sci: "Cactaceae",
-    tag: "Resistente",
-    color: "#fff3e0",
-  },
-  {
-    id: "2",
-    emoji: "🪴",
-    name: "Pothos",
-    sci: "Epipremnum aureum",
-    tag: "Facil de cuidar",
-    color: "#d8f3dc",
-  },
-  {
-    id: "3",
-    emoji: "🌹",
-    name: "Rosa",
-    sci: "Rosa",
-    tag: "Ornamental",
-    color: "#ffe4e6",
-  },
-  {
-    id: "4",
-    emoji: "🌿",
-    name: "Helecho",
-    sci: "Polypodiopsida",
-    tag: "Interior",
-    color: "#d8f3dc",
-  },
-  {
-    id: "5",
-    emoji: "🌻",
-    name: "Girasol",
-    sci: "Helianthus annuus",
-    tag: "Exterior",
-    color: "#fef9c3",
-  },
-  {
-    id: "6",
-    emoji: "🌱",
-    name: "Albahaca",
-    sci: "Ocimum basilicum",
-    tag: "Aromatica",
-    color: "#d8f3dc",
-  },
-  {
-    id: "7",
-    emoji: "🍃",
-    name: "Monstera",
-    sci: "Monstera deliciosa",
-    tag: "Tendencia",
-    color: "#dcfce7",
-  },
-  {
-    id: "8",
-    emoji: "🌸",
-    name: "Orquidea",
-    sci: "Orchidaceae",
-    tag: "Delicada",
-    color: "#fce7f3",
-  },
+interface FilterChip {
+  key: string;
+  label: string;
+  icon: string;
+  type: "luz" | "riego" | "toxica";
+  value: string;
+}
+
+const FILTERS: FilterChip[] = [
+  { key: "sol", label: "Pleno sol", icon: "☀️", type: "luz", value: "sol" },
+  { key: "sombra", label: "Sombra", icon: "🌥️", type: "luz", value: "sombra" },
+  { key: "semisombra", label: "Semisombra", icon: "🌤️", type: "luz", value: "semisombra" },
+  { key: "riego-frecuente", label: "Riego frecuente", icon: "💧", type: "riego", value: "frecuente" },
+  { key: "riego-moderado", label: "Riego moderado", icon: "💧", type: "riego", value: "moderado" },
+  { key: "riego-escaso", label: "Riego escaso", icon: "💧", type: "riego", value: "escaso" },
+  { key: "toxica-si", label: "Tóxica", icon: "⚠️", type: "toxica", value: "true" },
+  { key: "toxica-no", label: "No tóxica", icon: "✅", type: "toxica", value: "false" },
 ];
 
-const CATEGORIES = [
-  { id: "all", label: "Todas", icon: "🌿" },
-  { id: "interior", label: "Interior", icon: "🏠" },
-  { id: "exterior", label: "Exterior", icon: "☀️" },
-  { id: "aromaticas", label: "Aromaticas", icon: "🌸" },
-  { id: "cactus", label: "Cactus", icon: "🌵" },
-];
+interface ActiveFilter {
+  type: string;
+  value: string;
+}
 
-// Tarjeta de planta animada
 const PlantCard = ({
   item,
   index,
   onPress,
 }: {
-  item: (typeof POPULAR_PLANTS)[0];
+  item: Plant;
   index: number;
   onPress: () => void;
 }) => {
@@ -151,27 +103,46 @@ const PlantCard = ({
         onPressOut={handlePressOut}
         style={styles.card}
       >
-        <View style={[styles.emojiContainer, { backgroundColor: item.color }]}>
-          <Text style={styles.emoji}>{item.emoji}</Text>
-        </View>
-        <Text style={styles.plantName}>{item.name}</Text>
-        <Text style={styles.plantSci}>{item.sci}</Text>
-        <View style={styles.tag}>
-          <Text style={styles.tagText}>{item.tag}</Text>
-        </View>
+        {item.imageUri ? (
+          <Image source={{ uri: item.imageUri }} style={styles.cardImage} />
+        ) : (
+          <View style={styles.cardImagePlaceholder}>
+            <Text style={styles.cardPlaceholderEmoji}>🌿</Text>
+          </View>
+        )}
+        <Text style={styles.plantName}>{item.nombreComun}</Text>
+        <Text style={styles.plantSci}>{item.nombreCientifico}</Text>
+        {item.ownerName ? (
+          <View style={styles.ownerBadge}>
+            {item.ownerPhoto ? (
+              <Image
+                source={{ uri: item.ownerPhoto }}
+                style={styles.ownerBadgePhoto}
+              />
+            ) : (
+              <View style={styles.ownerBadgeInitial}>
+                <Text style={styles.ownerBadgeInitialText}>
+                  {item.ownerName.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
+            <Text style={styles.ownerBadgeText} numberOfLines={1}>
+              {item.ownerName}
+            </Text>
+          </View>
+        ) : null}
       </Pressable>
     </Animated.View>
   );
 };
 
-// Chip de categoria animado
-const CategoryChip = ({
+const FilterChip = ({
   item,
   isActive,
   onPress,
-  index,
+  index: chipIndex,
 }: {
-  item: (typeof CATEGORIES)[0];
+  item: FilterChip;
   isActive: boolean;
   onPress: () => void;
   index: number;
@@ -183,7 +154,7 @@ const CategoryChip = ({
     Animated.spring(scaleAnim, {
       toValue: 1,
       friction: 6,
-      delay: index * 60,
+      delay: chipIndex * 60,
       useNativeDriver: true,
     }).start();
   }, []);
@@ -209,9 +180,9 @@ const CategoryChip = ({
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
       <Pressable onPress={onPress}>
-        <Animated.View style={[styles.chip, { backgroundColor }]}>
-          <Text style={styles.chipIcon}>{item.icon}</Text>
-          <Animated.Text style={[styles.chipText, { color: textColor }]}>
+        <Animated.View style={[styles.filterChip, { backgroundColor }]}>
+          <Text style={styles.filterChipIcon}>{item.icon}</Text>
+          <Animated.Text style={[styles.filterChipText, { color: textColor }]}>
             {item.label}
           </Animated.Text>
         </Animated.View>
@@ -220,7 +191,6 @@ const CategoryChip = ({
   );
 };
 
-// Barra de busqueda animada
 const SearchBar = ({
   value,
   onChangeText,
@@ -259,7 +229,7 @@ const SearchBar = ({
       <Text style={styles.searchIcon}>🔍</Text>
       <TextInput
         style={styles.searchInput}
-        placeholder="Buscar plantas..."
+        placeholder="Buscar plantas por nombre..."
         placeholderTextColor="#999"
         value={value}
         onChangeText={onChangeText}
@@ -277,9 +247,17 @@ const SearchBar = ({
 
 export default function Explore() {
   const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState("all");
+  const [plants, setPlants] = useState<Plant[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
+  const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
+  const [showDetail, setShowDetail] = useState(false);
 
-  // Animaciones de entrada
   const headerFade = useRef(new Animated.Value(0)).current;
   const headerSlide = useRef(new Animated.Value(-20)).current;
 
@@ -299,26 +277,110 @@ export default function Explore() {
     ]).start();
   }, []);
 
-  const filteredPlants = POPULAR_PLANTS.filter((plant) => {
-    const matchesSearch =
-      plant.name.toLowerCase().includes(search.toLowerCase()) ||
-      plant.sci.toLowerCase().includes(search.toLowerCase());
+  const buildParams = useCallback(
+    (cursorVal?: string | null) => {
+      const params: {
+        cursor?: string;
+        limit?: number;
+        search?: string;
+        luz?: string;
+        riego?: string;
+        toxica?: string;
+      } = { limit: 20 };
 
-    if (activeCategory === "all") return matchesSearch;
+      if (cursorVal) params.cursor = cursorVal;
+      if (search) params.search = search;
 
-    const categoryMap: { [key: string]: string[] } = {
-      interior: ["Pothos", "Helecho", "Monstera"],
-      exterior: ["Girasol", "Rosa"],
-      aromaticas: ["Albahaca", "Orquidea"],
-      cactus: ["Cactus"],
-    };
+      for (const f of activeFilters) {
+        if (f.type === "luz") params.luz = f.value;
+        else if (f.type === "riego") params.riego = f.value;
+        else if (f.type === "toxica") params.toxica = f.value;
+      }
 
-    return matchesSearch && categoryMap[activeCategory]?.includes(plant.name);
-  });
+      return params;
+    },
+    [search, activeFilters],
+  );
+
+  const fetchPlants = useCallback(
+    async (isRefresh = false) => {
+      try {
+        if (isRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+        setError(null);
+
+        const params = buildParams(null);
+        const result = await api.plants.explore(params);
+        setPlants(result.plants);
+        setHasMore(result.hasMore);
+        setCursor(result.nextCursor);
+      } catch (e) {
+        setError(
+          e instanceof Error
+            ? e.message
+            : "No se pudieron cargar las plantas",
+        );
+        setPlants([]);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [buildParams],
+  );
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const params = buildParams(cursor);
+      const result = await api.plants.explore(params);
+      setPlants((prev) => [...prev, ...result.plants]);
+      setHasMore(result.hasMore);
+      setCursor(result.nextCursor);
+    } catch {
+      // ignore load more errors
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMore, cursor, buildParams]);
+
+  useEffect(() => {
+    fetchPlants();
+  }, [fetchPlants]);
+
+  const handleRefresh = () => fetchPlants(true);
+
+  const toggleFilter = (filter: FilterChip) => {
+    setActiveFilters((prev) => {
+      const existing = prev.find(
+        (f) => f.type === filter.type && f.value === filter.value,
+      );
+      if (existing) {
+        return prev.filter(
+          (f) => !(f.type === filter.type && f.value === filter.value),
+        );
+      }
+      // Remove other filters of same type
+      return [...prev.filter((f) => f.type !== filter.type), { type: filter.type, value: filter.value }];
+    });
+  };
+
+  const isFilterActive = (filter: FilterChip) =>
+    activeFilters.some(
+      (f) => f.type === filter.type && f.value === filter.value,
+    );
+
+  const handlePlantPress = (plant: Plant) => {
+    setSelectedPlant(plant);
+    setShowDetail(true);
+  };
 
   return (
     <View style={styles.container}>
-      {/* Fondo con gradiente */}
       <LinearGradient
         colors={["#f0f7f4", "#e8f5e9", "#f0f7f4"]}
         style={styles.gradient}
@@ -326,11 +388,9 @@ export default function Explore() {
         end={{ x: 1, y: 1 }}
       />
 
-      {/* Circulos decorativos */}
       <View style={styles.decorCircle1} />
       <View style={styles.decorCircle2} />
 
-      {/* Header */}
       <Animated.View
         style={[
           styles.header,
@@ -341,54 +401,91 @@ export default function Explore() {
         ]}
       >
         <Text style={styles.title}>Explorar</Text>
-        <Text style={styles.subtitle}>Descubre plantas populares</Text>
+        <Text style={styles.subtitle}>
+          Descubre plantas de la comunidad
+        </Text>
       </Animated.View>
 
-      {/* Barra de busqueda */}
       <View style={styles.searchWrapper}>
         <SearchBar value={search} onChangeText={setSearch} />
       </View>
 
-      {/* Categorias */}
       <FlatList
-        data={CATEGORIES}
+        data={FILTERS}
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoriesContainer}
-        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.filtersContainer}
+        keyExtractor={(item) => item.key}
         renderItem={({ item, index }) => (
-          <CategoryChip
+          <FilterChip
             item={item}
-            isActive={activeCategory === item.id}
-            onPress={() => setActiveCategory(item.id)}
+            isActive={isFilterActive(item)}
+            onPress={() => toggleFilter(item)}
             index={index}
           />
         )}
       />
 
-      {/* Grid de plantas */}
-      <FlatList
-        data={filteredPlants}
-        keyExtractor={(i) => i.id}
-        numColumns={2}
-        contentContainerStyle={styles.gridContent}
-        columnWrapperStyle={styles.gridRow}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>🔍</Text>
-            <Text style={styles.emptyText}>No se encontraron plantas</Text>
-          </View>
-        }
-        renderItem={({ item, index }) => (
-          <PlantCard
-            item={item}
-            index={index}
-            onPress={() => {
-              // Navegar a detalle de planta
-            }}
-          />
-        )}
+      {loading ? (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#2d6a4f" />
+          <Text style={styles.loadingText}>Cargando plantas...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.centerContainer}>
+          <Text style={styles.errorIcon}>⚠️</Text>
+          <Text style={styles.errorText}>{error}</Text>
+          <Pressable style={styles.retryBtn} onPress={() => fetchPlants()}>
+            <Text style={styles.retryBtnText}>Intentar de nuevo</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <FlatList
+          data={plants}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          contentContainerStyle={styles.gridContent}
+          columnWrapperStyle={styles.gridRow}
+          showsVerticalScrollIndicator={false}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator size="small" color="#2d6a4f" />
+              </View>
+            ) : null
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyIcon}>🔍</Text>
+              <Text style={styles.emptyText}>
+                No se encontraron plantas públicas
+              </Text>
+              <Text style={styles.emptySubtext}>
+                Intenta cambiar los filtros o la búsqueda
+              </Text>
+            </View>
+          }
+          renderItem={({ item, index }) => (
+            <PlantCard
+              item={item}
+              index={index}
+              onPress={() => handlePlantPress(item)}
+            />
+          )}
+        />
+      )}
+
+      <PlantDetailModal
+        visible={showDetail}
+        plant={selectedPlant}
+        onClose={() => {
+          setShowDetail(false);
+          setSelectedPlant(null);
+        }}
       />
     </View>
   );
@@ -439,7 +536,7 @@ const styles = StyleSheet.create({
   },
   searchWrapper: {
     paddingHorizontal: 24,
-    marginBottom: 16,
+    marginBottom: 12,
     zIndex: 2,
   },
   searchContainer: {
@@ -473,16 +570,16 @@ const styles = StyleSheet.create({
     color: "#999",
     fontWeight: "600",
   },
-  categoriesContainer: {
+  filtersContainer: {
     paddingHorizontal: 20,
     gap: 10,
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  chip: {
+  filterChip: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 25,
     gap: 6,
     shadowColor: "#000",
@@ -491,12 +588,45 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 1,
   },
-  chipIcon: {
-    fontSize: 14,
+  filterChipIcon: {
+    fontSize: 13,
   },
-  chipText: {
-    fontSize: 14,
+  filterChipText: {
+    fontSize: 13,
     fontWeight: "600",
+  },
+  centerContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 40,
+  },
+  loadingText: {
+    fontSize: 15,
+    color: "#74c69d",
+    marginTop: 12,
+  },
+  errorIcon: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  errorText: {
+    fontSize: 15,
+    color: "#e63946",
+    textAlign: "center",
+    lineHeight: 22,
+  },
+  retryBtn: {
+    marginTop: 16,
+    backgroundColor: "#2d6a4f",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 14,
+  },
+  retryBtnText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 14,
   },
   gridContent: {
     paddingHorizontal: 16,
@@ -512,7 +642,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: "#fff",
     borderRadius: 20,
-    padding: 16,
+    padding: 12,
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -520,19 +650,26 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
   },
-  emojiContainer: {
-    width: 70,
-    height: 70,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 12,
+  cardImage: {
+    width: "100%",
+    height: 100,
+    borderRadius: 14,
+    marginBottom: 10,
   },
-  emoji: {
-    fontSize: 36,
+  cardImagePlaceholder: {
+    width: "100%",
+    height: 100,
+    borderRadius: 14,
+    backgroundColor: "#d8f3dc",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
+  cardPlaceholderEmoji: {
+    fontSize: 40,
   },
   plantName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
     color: "#1b4332",
     textAlign: "center",
@@ -544,17 +681,39 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 2,
   },
-  tag: {
-    backgroundColor: "#d8f3dc",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    marginTop: 10,
+  ownerBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    gap: 4,
+    backgroundColor: "#f0f7f4",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
-  tagText: {
+  ownerBadgePhoto: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+  },
+  ownerBadgeInitial: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#2d6a4f",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ownerBadgeInitialText: {
+    color: "#fff",
+    fontSize: 9,
+    fontWeight: "700",
+  },
+  ownerBadgeText: {
     fontSize: 11,
-    color: "#2d6a4f",
+    color: "#52796f",
     fontWeight: "600",
+    maxWidth: 80,
   },
   emptyContainer: {
     flex: 1,
@@ -568,6 +727,18 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
+    color: "#52796f",
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  emptySubtext: {
+    fontSize: 13,
     color: "#74c69d",
+    textAlign: "center",
+    marginTop: 6,
+  },
+  footerLoader: {
+    paddingVertical: 20,
+    alignItems: "center",
   },
 });

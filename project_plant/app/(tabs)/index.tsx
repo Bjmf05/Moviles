@@ -13,6 +13,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "../../context/AuthContext";
 import FloatingLeavesLayer from "@/components/FloatingLeavesLayer";
+import QuickStats from "@/components/QuickStats";
 
 const { width, height } = Dimensions.get("window");
 
@@ -263,40 +264,8 @@ export default function Home() {
         {/* Tip del dia */}
         <DailyTip />
 
-        {/* Acciones rapidas */}
-        <Animated.View style={[styles.quickActions, { opacity: cardsFade }]}>
-          <Text style={styles.sectionTitle}>Acciones rapidas</Text>
-          <View style={styles.actionsRow}>
-            <Pressable
-              style={styles.actionBtn}
-              onPress={() => router.push("/(tabs)/camera")}
-            >
-              <Text style={styles.actionIcon}>🌸</Text>
-              <Text style={styles.actionText}>Flores</Text>
-            </Pressable>
-            <Pressable
-              style={styles.actionBtn}
-              onPress={() => router.push("/(tabs)/camera")}
-            >
-              <Text style={styles.actionIcon}>🌳</Text>
-              <Text style={styles.actionText}>Arboles</Text>
-            </Pressable>
-            <Pressable
-              style={styles.actionBtn}
-              onPress={() => router.push("/(tabs)/camera")}
-            >
-              <Text style={styles.actionIcon}>🌵</Text>
-              <Text style={styles.actionText}>Cactus</Text>
-            </Pressable>
-            <Pressable
-              style={styles.actionBtn}
-              onPress={() => router.push("/(tabs)/camera")}
-            >
-              <Text style={styles.actionIcon}>🍃</Text>
-              <Text style={styles.actionText}>Hierbas</Text>
-            </Pressable>
-          </View>
-        </Animated.View>
+        {/* Estadisticas rapidas */}
+        <QuickStats />
       </ScrollView>
     </View>
   );
@@ -473,39 +442,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#1b4332",
     lineHeight: 22,
-  },
-  quickActions: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1b4332",
-    marginBottom: 16,
-  },
-  actionsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  actionBtn: {
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    width: "23%",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  actionIcon: {
-    fontSize: 24,
-    marginBottom: 6,
-  },
-  actionText: {
-    fontSize: 11,
-    color: "#52796f",
-    fontWeight: "600",
   },
 });

@@ -45,6 +45,7 @@ export default function CameraScreen() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PlantInfo | null>(null);
   const [notes, setNotes] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{
     visible: boolean;
@@ -177,6 +178,7 @@ export default function CameraScreen() {
         ...result,
         imageUri: imageUrl,
         notes,
+        isPublic,
       });
       showToast("Planta agregada a tu jardín", "success");
       setShowPlantModal(false);
@@ -346,6 +348,25 @@ export default function CameraScreen() {
                     onChangeText={setNotes}
                     multiline
                   />
+
+                  <Pressable
+                    style={styles.shareToggle}
+                    onPress={() => setIsPublic(!isPublic)}
+                  >
+                    <Text style={styles.shareToggleIcon}>
+                      {isPublic ? "🌍" : "🔒"}
+                    </Text>
+                    <View style={styles.shareToggleInfo}>
+                      <Text style={styles.shareToggleLabel}>
+                        Compartir en Explorar
+                      </Text>
+                      <Text style={styles.shareToggleDesc}>
+                        {isPublic
+                          ? "Tu planta sera visible para otros usuarios"
+                          : "Solo tu podras ver esta planta"}
+                      </Text>
+                    </View>
+                  </Pressable>
 
                   <TouchableOpacity
                     style={[
@@ -572,7 +593,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     minHeight: 80,
     textAlignVertical: "top",
+    marginBottom: 12,
+  },
+  shareToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 14,
     marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: "#d8f3dc",
+    gap: 12,
+  },
+  shareToggleIcon: {
+    fontSize: 24,
+  },
+  shareToggleInfo: {
+    flex: 1,
+  },
+  shareToggleLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1b4332",
+  },
+  shareToggleDesc: {
+    fontSize: 12,
+    color: "#74c69d",
+    marginTop: 2,
   },
   saveBtn: {
     backgroundColor: "#2d6a4f",

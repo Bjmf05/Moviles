@@ -10,6 +10,11 @@ import {
 
 const router = Router();
 
+// Explore (public)
+router.get("/explore", plantsController.getExplorePlants);
+router.get("/explore/:id", plantsController.getExplorePlant);
+
+// Auth routes
 router.post(
   "/",
   authMiddleware,
