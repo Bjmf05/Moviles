@@ -4,6 +4,8 @@ import {
   cachePlants,
   getCachedPlants,
   cacheAllPlantImages,
+  removeCachedPlant,
+  removeCachedTimelineImages,
 } from "./localCache";
 
 export { api };
@@ -46,7 +48,10 @@ export function usePlants() {
 
   const deletePlant = async (plantId: string) => {
     if (!token) throw new Error("Not authenticated");
-    return api.plants.delete(token, plantId);
+    const result = await api.plants.delete(token, plantId);
+    await removeCachedPlant(plantId);
+    await removeCachedTimelineImages();
+    return result;
   };
 
   const uploadImage = async (uri: string): Promise<string> => {

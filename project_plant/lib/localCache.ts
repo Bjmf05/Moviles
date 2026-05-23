@@ -86,6 +86,12 @@ export async function removeCachedPlant(plantId: string): Promise<void> {
   } catch {}
 }
 
+export async function removeCachedTimelineImages(): Promise<void> {
+  try {
+    await FileSystem.deleteAsync(TIMELINE_IMAGES_DIR, { idempotent: true });
+  } catch {}
+}
+
 // Timeline image cache
 
 export async function cacheTimelineImage(

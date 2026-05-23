@@ -425,6 +425,32 @@ export async function deletePlant(req: Request, res: Response): Promise<void> {
       }
     }
 
+    // Delete timeline entries and their images
+    const TIMELINE_COLLECTION = "timeline_entries";
+    const timelineSnapshot = await db
+      .collection(TIMELINE_COLLECTION)
+      .where("plantId", "==", id)
+      .get();
+
+    if (!timelineSnapshot.empty) {
+      // Delete all timeline images from Supabase
+      for (const tDoc of timelineSnapshot.docs) {
+        const entry = tDoc.data() as { imageUrl?: string } | undefined;
+        if (entry?.imageUrl) {
+          try {
+            await deleteUserImage(entry.imageUrl);
+          } catch (e) {
+            logger.error(e, "Failed to delete timeline image");
+          }
+        }
+      }
+
+      // Batch delete all timeline entries
+      const batch = db.batch();
+      timelineSnapshot.docs.forEach((tDoc) => batch.delete(tDoc.ref));
+      await batch.commit();
+    }
+
     await docRef.delete();
 
     res.json({ success: true, message: "Plant deleted" });
