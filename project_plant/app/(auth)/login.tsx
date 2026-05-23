@@ -24,6 +24,7 @@ import { Toast } from "../../components/Toast";
 import { useGoogleAuth } from "../../hooks/useGoogleAuth";
 import { useAuth } from "../../context/AuthContext";
 import { AuthUser } from "../../lib/api";
+import ForgotPasswordModal from "@/components/ForgotPasswordModal";
 
 const { height } = Dimensions.get("window");
 
@@ -39,6 +40,7 @@ const loginSchema = z.object({
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
+  const [showForgotModal, setShowForgotModal] = useState(false);
   const [toast, setToast] = useState<{
     visible: boolean;
     message: string;
@@ -63,7 +65,7 @@ export default function Login() {
   };
 
   const { authGoogle, request } = useGoogleAuth(onGoogleSuccess);
-  const { control, handleSubmit } = useForm<LoginForm>({
+  const { control, handleSubmit, getValues } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   });
@@ -231,7 +233,10 @@ export default function Login() {
                 />
               </View>
 
-              <Pressable style={styles.forgotPassword}>
+              <Pressable
+                style={styles.forgotPassword}
+                onPress={() => setShowForgotModal(true)}
+              >
                 <Text style={styles.forgotPasswordText}>
                   ¿Olvidaste tu contraseña?
                 </Text>
@@ -279,6 +284,14 @@ export default function Login() {
           <Text style={styles.footerText}>🌿 🌸 🌺 🍀 🌻</Text>
         </View>
       </KeyboardAvoidingView>
+
+      <ForgotPasswordModal
+        visible={showForgotModal}
+        email={getValues("email")}
+        onClose={() => setShowForgotModal(false)}
+        onSuccess={(msg) => showToast(msg, "success")}
+        onError={(msg) => showToast(msg, "error")}
+      />
 
       <Toast
         visible={toast.visible}

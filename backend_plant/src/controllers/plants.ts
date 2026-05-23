@@ -282,6 +282,7 @@ export async function getExplorePlants(
     const db = getFirestore();
     let query: FirebaseFirestore.Query = db
       .collection(PLANTS_COLLECTION)
+      .where("isPublic", "==", true)
       .orderBy("savedAt", "desc")
       .limit(limit + 1);
 
@@ -297,9 +298,6 @@ export async function getExplorePlants(
       id: doc.id,
       ...doc.data(),
     }));
-
-    // Filter only public plants
-    plants = plants.filter((p) => p.isPublic === true);
 
     // Apply search filter in-memory
     if (search) {
