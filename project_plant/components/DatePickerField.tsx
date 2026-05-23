@@ -28,7 +28,7 @@ const monthLabels = [
 
 const weekDays = ["D", "L", "M", "M", "J", "V", "S"];
 
-const years = Array.from({ length: 151 }, (_, i) => 2025 - i);
+const years = Array.from({ length: 151 }, (_, i) => 2026 - i);
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
@@ -118,7 +118,12 @@ export function DatePickerField({
                 }}
               >
                 {monthLabels.map((label, index) => (
-                  <Picker.Item key={label} label={label} value={index} />
+                  <Picker.Item
+                    key={label}
+                    label={label}
+                    value={index}
+                    color="#333"
+                  />
                 ))}
               </Picker>
               <Picker
@@ -133,7 +138,12 @@ export function DatePickerField({
                 }}
               >
                 {years.map((year) => (
-                  <Picker.Item key={year} label={`${year}`} value={year} />
+                  <Picker.Item
+                    key={year}
+                    label={`${year}`}
+                    value={year}
+                    color="#333"
+                  />
                 ))}
               </Picker>
             </View>

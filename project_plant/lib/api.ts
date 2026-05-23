@@ -58,6 +58,7 @@ export interface AuthUser {
   name: string;
   birthdate?: string;
   country?: string;
+  photoURL?: string;
 }
 
 export interface Plant {

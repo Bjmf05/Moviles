@@ -235,6 +235,9 @@ const SearchBar = ({
         onChangeText={onChangeText}
         onFocus={handleFocus}
         onBlur={handleBlur}
+        keyboardType="web-search"
+        autoCapitalize="none"
+        returnKeyType="search"
       />
       {value.length > 0 && (
         <Pressable onPress={() => onChangeText("")} style={styles.clearBtn}>

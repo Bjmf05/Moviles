@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { Plant } from "./api";
 
 const PLANTS_CACHE_KEY = "@plants_cache";
@@ -72,7 +72,7 @@ export async function resolveLocalImageMap(
       return local ? ([p.id, local] as const) : null;
     }),
   );
-  return Object.fromEntries(entries.filter(Boolean));
+  return Object.fromEntries(entries.filter((e): e is readonly [string, string] => e !== null));
 }
 
 export async function removeCachedPlant(plantId: string): Promise<void> {

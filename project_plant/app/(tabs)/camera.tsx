@@ -7,7 +7,9 @@ import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -279,9 +281,14 @@ export default function CameraScreen() {
         animationType="slide"
         onRequestClose={resetCaptureFlow}
       >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={{ flex: 1 }}
+        >
         <ScrollView
           style={styles.modalContainer}
           contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
         >
           <Text style={styles.title}>Datos de la planta</Text>
 
@@ -347,6 +354,7 @@ export default function CameraScreen() {
                     value={notes}
                     onChangeText={setNotes}
                     multiline
+                    autoCapitalize="sentences"
                   />
 
                   <Pressable
@@ -393,6 +401,7 @@ export default function CameraScreen() {
             </View>
           ) : null}
         </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={loading} transparent animationType="fade">

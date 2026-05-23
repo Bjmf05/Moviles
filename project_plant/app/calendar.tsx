@@ -4,7 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
   Easing,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -188,6 +190,10 @@ export default function CalendarScreen() {
       </ScrollView>
 
       <Modal transparent animationType="fade" visible={!!editingPlant} onRequestClose={() => setEditingPlant(null)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={{ flex: 1 }}
+        >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Editar frecuencia</Text>
@@ -211,6 +217,7 @@ export default function CalendarScreen() {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onClose={() => setToast((t) => ({ ...t, visible: false }))} />

@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { Plant } from "../lib/api";
+import { formatFullDate } from "../lib/dateUtils";
 
 interface Props {
   visible: boolean;
@@ -18,13 +19,6 @@ interface Props {
 
 export default function PlantDetailModal({ visible, plant, onClose }: Props) {
   if (!plant) return null;
-
-  const formatFullDate = (isoDate: string) =>
-    new Date(isoDate).toLocaleDateString("es-ES", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    });
 
   return (
     <Modal

@@ -1,5 +1,8 @@
 import { Control, Controller, FieldValues, Path } from "react-hook-form";
+import { forwardRef } from "react";
 import {
+  KeyboardTypeOptions,
+  ReturnKeyTypeOptions,
   StyleSheet,
   Text,
   TextInput,
@@ -14,18 +17,31 @@ type InputTextProps<T extends FieldValues> = {
   placeholder?: string;
   icon?: string;
   secureTextEntry?: boolean;
+  keyboardType?: KeyboardTypeOptions;
+  autoCapitalize?: "none" | "sentences" | "words" | "characters";
+  returnKeyType?: ReturnKeyTypeOptions;
+  autoComplete?: TextInputProps["autoComplete"];
+  blurOnSubmit?: boolean;
   inputProps?: TextInputProps;
 };
 
-function InputText<T extends FieldValues>({
-  control,
-  name,
-  label,
-  placeholder,
-  icon,
-  secureTextEntry,
-  inputProps,
-}: InputTextProps<T>) {
+function InputTextWithRef<T extends FieldValues>(
+  {
+    control,
+    name,
+    label,
+    placeholder,
+    icon,
+    secureTextEntry,
+    keyboardType,
+    autoCapitalize,
+    returnKeyType,
+    autoComplete,
+    blurOnSubmit,
+    inputProps,
+  }: InputTextProps<T>,
+  ref: React.Ref<TextInput>,
+) {
   return (
     <Controller
       control={control}
@@ -37,6 +53,7 @@ function InputText<T extends FieldValues>({
         <View style={styles.wrapper}>
           <Text style={styles.label}>{icon ? `${icon} ${label}` : label}</Text>
           <TextInput
+            ref={ref}
             style={[styles.input, error && styles.inputError]}
             onChangeText={onChange}
             onBlur={onBlur}
@@ -44,6 +61,11 @@ function InputText<T extends FieldValues>({
             placeholder={placeholder}
             placeholderTextColor="#aaa"
             secureTextEntry={secureTextEntry}
+            keyboardType={keyboardType}
+            autoCapitalize={autoCapitalize}
+            returnKeyType={returnKeyType}
+            autoComplete={autoComplete}
+            blurOnSubmit={blurOnSubmit}
             {...inputProps}
           />
           {error && <Text style={styles.error}>{error.message}</Text>}
@@ -52,6 +74,10 @@ function InputText<T extends FieldValues>({
     />
   );
 }
+
+const InputText = forwardRef(InputTextWithRef) as <T extends FieldValues>(
+  props: InputTextProps<T> & { ref?: React.Ref<TextInput> },
+) => React.ReactElement;
 
 export { InputText };
 export default InputText;

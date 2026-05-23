@@ -221,6 +221,8 @@ export default function Register() {
                   label="Nombre completo"
                   icon="👤"
                   placeholder="Tu nombre"
+                  autoCapitalize="words"
+                  returnKeyType="next"
                 />
                 <InputText
                   control={control}
@@ -228,10 +230,9 @@ export default function Register() {
                   label="Correo electrónico"
                   icon="📧"
                   placeholder="correo@ejemplo.com"
-                  inputProps={{
-                    keyboardType: "email-address",
-                    autoCapitalize: "none",
-                  }}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  returnKeyType="next"
                 />
                 <InputText
                   control={control}
@@ -240,6 +241,8 @@ export default function Register() {
                   icon="🔐"
                   placeholder="Mínimo 6 caracteres"
                   secureTextEntry
+                  autoCapitalize="none"
+                  returnKeyType="next"
                 />
                 <InputText
                   control={control}
@@ -248,6 +251,8 @@ export default function Register() {
                   icon="🔐"
                   placeholder="Repite la contraseña"
                   secureTextEntry
+                  autoCapitalize="none"
+                  returnKeyType="next"
                 />
                 <Controller
                   control={control}
@@ -270,6 +275,8 @@ export default function Register() {
                   label="País"
                   icon="🌎"
                   placeholder="Ej. Costa Rica"
+                  autoCapitalize="words"
+                  returnKeyType="done"
                 />
 
                 <View style={styles.buttonContainer}>

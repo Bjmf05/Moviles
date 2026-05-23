@@ -1,6 +1,7 @@
 // Import the functions you need from the SDKs you need
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { initializeApp } from "firebase/app";
+// @ts-expect-error - getReactNativePersistence exists at runtime in Expo
 import { getReactNativePersistence, initializeAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";

@@ -226,6 +226,8 @@ export default function Login() {
                   icon="🔐"
                   placeholder="Tu contraseña"
                   secureTextEntry
+                  autoCapitalize="none"
+                  returnKeyType="done"
                 />
               </View>
 
