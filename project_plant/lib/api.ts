@@ -198,4 +198,39 @@ export const api = {
       return data.url;
     },
   },
+
+  timeline: {
+    getAll: (token: string, plantId: string) =>
+      apiRequest<{ entries: TimelineEntry[] }>(
+        `/api/plants/${plantId}/timeline`,
+        { token },
+      ),
+
+    add: (
+      token: string,
+      plantId: string,
+      data: { imageUrl: string; caption?: string; capturedAt?: string },
+    ) =>
+      apiRequest<TimelineEntry>(`/api/plants/${plantId}/timeline`, {
+        method: "POST",
+        body: data,
+        token,
+      }),
+
+    delete: (token: string, plantId: string, entryId: string) =>
+      apiRequest<{ success: boolean }>(
+        `/api/plants/${plantId}/timeline/${entryId}`,
+        { method: "DELETE", token },
+      ),
+  },
 };
+
+export interface TimelineEntry {
+  id: string;
+  plantId: string;
+  userId: string;
+  imageUrl: string;
+  caption?: string;
+  capturedAt: string;
+  createdAt: string;
+}

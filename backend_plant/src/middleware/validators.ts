@@ -214,6 +214,24 @@ export const validateGoogleLogin = [
     .withMessage("idToken debe ser un string"),
 ];
 
+export const validateTimelineEntry = [
+  body("imageUrl")
+    .notEmpty()
+    .withMessage("imageUrl es obligatorio")
+    .isURL()
+    .withMessage("imageUrl debe ser una URL válida"),
+  body("caption")
+    .optional()
+    .trim()
+    .isLength({ max: 300 })
+    .withMessage("La nota no puede exceder 300 caracteres")
+    .escape(),
+  body("capturedAt")
+    .optional()
+    .isISO8601()
+    .withMessage("capturedAt no es una fecha válida"),
+];
+
 export const validateCreateWatering = [
   body("frequencyDays")
     .isInt({ min: 1, max: 365 })

@@ -10,6 +10,7 @@ import usersRouter from "./routes/users.js";
 import plantsRouter from "./routes/plants.js";
 import uploadsRouter from "./routes/uploads.js";
 import calendarRouter from "./routes/calendar.js";
+import timelineRouter from "./routes/timeline.js";
 import { initFirebase } from "./services/firebase.js";
 import { initSupabase } from "./services/supabase.js";
 import { pinoHttp } from "pino-http";
@@ -39,6 +40,7 @@ app.use("/api/identify", identifyRouter, identifyLimiter);
 app.use("/api/translate", translateRouter, translateLimiter);
 app.use("/api/auth", usersRouter, authLimiter);
 app.use("/api/plants", plantsRouter);
+app.use("/api/plants", timelineRouter);
 app.use("/api/images", uploadsRouter, uploadLimiter);
 app.use("/api/calendar", calendarRouter);
 

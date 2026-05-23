@@ -1,9 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
-import { Plant } from "./api";
+import { Plant, TimelineEntry } from "./api";
 
 const PLANTS_CACHE_KEY = "@plants_cache";
 const IMAGES_DIR = `${FileSystem.documentDirectory}plants/`;
+const TIMELINE_IMAGES_DIR = `${FileSystem.documentDirectory}timeline/`;
 
 export async function cachePlants(plants: Plant[]): Promise<void> {
   try {
@@ -83,6 +84,61 @@ export async function removeCachedPlant(plantId: string): Promise<void> {
       idempotent: true,
     });
   } catch {}
+}
+
+// Timeline image cache
+
+export async function cacheTimelineImage(
+  remoteUri: string,
+  entryId: string,
+): Promise<string | null> {
+  try {
+    await FileSystem.makeDirectoryAsync(TIMELINE_IMAGES_DIR, { intermediates: true });
+    const localPath = `${TIMELINE_IMAGES_DIR}${entryId}.jpg`;
+    const info = await FileSystem.getInfoAsync(localPath);
+    if (info.exists) return localPath;
+    const result = await FileSystem.downloadAsync(remoteUri, localPath);
+    return result.uri;
+  } catch {
+    return null;
+  }
+}
+
+export async function getLocalTimelineImagePath(
+  entryId: string,
+): Promise<string | null> {
+  try {
+    const localPath = `${TIMELINE_IMAGES_DIR}${entryId}.jpg`;
+    const info = await FileSystem.getInfoAsync(localPath);
+    return info.exists ? localPath : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function cacheAllTimelineImages(entries: TimelineEntry[]): Promise<void> {
+  try {
+    await FileSystem.makeDirectoryAsync(TIMELINE_IMAGES_DIR, { intermediates: true });
+    const results = await Promise.allSettled(
+      entries
+        .filter((e) => e.imageUrl)
+        .map((e) => cacheTimelineImage(e.imageUrl, e.id)),
+    );
+    const failed = results.filter((r) => r.status === "rejected").length;
+    if (failed > 0) console.warn(`Failed to cache ${failed} timeline images`);
+  } catch {}
+}
+
+export async function resolveLocalTimelineImageMap(
+  entries: TimelineEntry[],
+): Promise<Record<string, string>> {
+  const mapped = await Promise.all(
+    entries.map(async (e) => {
+      const local = await getLocalTimelineImagePath(e.id);
+      return local ? ([e.id, local] as const) : null;
+    }),
+  );
+  return Object.fromEntries(mapped.filter((e): e is readonly [string, string] => e !== null));
 }
 
 export async function clearCache(): Promise<void> {

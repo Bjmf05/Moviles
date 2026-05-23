@@ -1,5 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { Control } from "react-hook-form";
+import { useEffect, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -11,9 +12,16 @@ import {
   Text,
   View,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { InputText } from "./InputText";
 import { SavedPlant } from "../lib/plants";
 import { formatFullDate } from "../lib/dateUtils";
+import { useAuth } from "../context/AuthContext";
+import { api } from "../lib/api";
+import { useTimeline } from "../lib/timeline";
+import { cacheAllTimelineImages, resolveLocalTimelineImageMap } from "../lib/localCache";
+import GrowthTimeline from "./GrowthTimeline";
+import AddTimelinePhoto from "./AddTimelinePhoto";
 
 type PlantEditFields = {
   nombreComun: string;
@@ -50,6 +58,69 @@ export default function PlantEditModal({
   onToggleEditing,
   onTogglePublic,
 }: PlantEditModalProps) {
+  const { token } = useAuth();
+  const { entries, loading, addEntry } = useTimeline(plant?.id ?? "");
+  const [showAddPhoto, setShowAddPhoto] = useState(false);
+  const [previewUri, setPreviewUri] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [timelineImages, setTimelineImages] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (entries.length === 0) {
+      setTimelineImages({});
+      return;
+    }
+    cacheAllTimelineImages(entries);
+    resolveLocalTimelineImageMap(entries).then(setTimelineImages);
+  }, [entries]);
+
+  const handlePickPhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      quality: 0.7,
+      mediaTypes: ["images"],
+    });
+    if (!result.canceled && result.assets[0]) {
+      setPreviewUri(result.assets[0].uri);
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") return;
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.7,
+      mediaTypes: ["images"],
+    });
+    if (!result.canceled && result.assets[0]) {
+      setPreviewUri(result.assets[0].uri);
+    }
+  };
+
+  const handleRetakePhoto = () => {
+    setPreviewUri(null);
+  };
+
+  const handleSavePhoto = async (caption: string) => {
+    if (!token || !previewUri || !plant) return;
+    setUploading(true);
+    try {
+      const imageUrl = await api.images.upload(token, previewUri);
+      await addEntry({
+        imageUrl,
+        caption: caption || "",
+        capturedAt: new Date().toISOString().split("T")[0],
+      });
+      setShowAddPhoto(false);
+      setPreviewUri(null);
+    } catch {
+      // error silently handled
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <Modal
       visible={visible}
@@ -247,6 +318,13 @@ export default function PlantEditModal({
                     </Text>
                   </View>
 
+                  <GrowthTimeline
+                    entries={entries}
+                    loading={loading}
+                    localImages={timelineImages}
+                    onAddPhoto={() => setShowAddPhoto(true)}
+                  />
+
                   <Pressable style={styles.editBtn} onPress={onToggleEditing}>
                     <LinearGradient
                       colors={["#2d6a4f", "#40916c"]}
@@ -267,6 +345,20 @@ export default function PlantEditModal({
           )}
         </ScrollView>
         </KeyboardAvoidingView>
+
+        <AddTimelinePhoto
+          visible={showAddPhoto}
+          uploading={uploading}
+          previewUri={previewUri}
+          onTakePhoto={handleTakePhoto}
+          onPickPhoto={handlePickPhoto}
+          onRetake={handleRetakePhoto}
+          onSave={handleSavePhoto}
+          onClose={() => {
+            setShowAddPhoto(false);
+            setPreviewUri(null);
+          }}
+        />
       </View>
     </Modal>
   );
