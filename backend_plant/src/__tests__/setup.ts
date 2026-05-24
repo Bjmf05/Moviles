@@ -1,0 +1,12 @@
+process.env.JWT_SECRET = 'test-jwt-secret-for-unit-tests';
+process.env.SUPABASE_URL = 'https://test-project.supabase.co';
+process.env.SUPABASE_ANON_KEY = 'test-supabase-anon-key';
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-supabase-service-role-key';
+process.env.PLANT_ID_API_KEY = 'test-plant-id-api-key';
+process.env.FIREBASE_API_KEY = 'test-firebase-api-key';
+process.env.FIREBASE_CLIENT_EMAIL = 'firebase-admin@test-project.iam.gserviceaccount.com';
+process.env.FIREBASE_PROJECT_ID = 'test-firebase-project';
+process.env.FIREBASE_PRIVATE_KEY = '-----BEGIN PRIVATE KEY-----\nMOCK\n-----END PRIVATE KEY-----';
+process.env.GOOGLE_ANDROID_CLIENT_ID = '123456789-test-google-client-id.apps.googleusercontent.com';
+process.env.MYMEMORY_EMAIL = 'test@example.com';
+process.env.PORT = '4000';
