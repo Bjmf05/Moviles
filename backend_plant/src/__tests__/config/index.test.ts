@@ -48,10 +48,9 @@ describe('Config', () => {
   });
 
   test('requireValidConfig() throws when JWT_SECRET is missing', () => {
-    delete process.env.SUPABASE_URL;
     delete process.env.JWT_SECRET;
     const { requireValidConfig } = require('../../config/index.js');
-    expect(() => requireValidConfig()).toThrow('Missing SUPABASE_URL');
+    expect(() => requireValidConfig()).toThrow('Missing JWT_SECRET');
   });
 
   test('requireValidConfig() throws when GOOGLE_ANDROID_CLIENT_ID is missing', () => {
@@ -61,11 +60,9 @@ describe('Config', () => {
   });
 
   test('requireValidConfig() throws when FIREBASE_API_KEY is missing', () => {
-    delete process.env.SUPABASE_URL;
-    delete process.env.GOOGLE_ANDROID_CLIENT_ID;
     delete process.env.FIREBASE_API_KEY;
     const { requireValidConfig } = require('../../config/index.js');
-    expect(() => requireValidConfig()).toThrow('Missing SUPABASE_URL');
+    expect(() => requireValidConfig()).toThrow('Missing FIREBASE_API_KEY');
   });
 
   test('getConfig() returns the same singleton as loadConfig()', () => {
