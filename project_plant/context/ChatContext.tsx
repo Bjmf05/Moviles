@@ -76,6 +76,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     restoreSession();
+    return () => {
+      wsRef.current?.disconnect();
+    };
   }, []);
 
   const restoreSession = async () => {

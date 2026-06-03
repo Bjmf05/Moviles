@@ -4,7 +4,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { AnimatedButton } from "../AnimatedButton";
+import AnimatedButton from "../AnimatedButton";
 
 interface Props {
   placeholder: string;
