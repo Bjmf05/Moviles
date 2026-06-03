@@ -1,6 +1,6 @@
 import { WsClientEvent, WsEvent } from "./types";
 
-const BASE_URL_WS = process.env.EXPO_PUBLIC_CHAT_WS_APP ?? "";
+const BASE_URL_WS = process.env.EXO_PUBLIC_CHAT_BACKEND?.replace(/^https/, "wss") ?? "";
 const PING_INTERVAL = 25000;
 const MAX_RECONNECT_DELAY = 30000;
 const INITIAL_RECONNECT_DELAY = 1000;

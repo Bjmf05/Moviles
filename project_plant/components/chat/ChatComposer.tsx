@@ -30,7 +30,7 @@ export default function ChatComposer({ placeholder, onSend }: Props) {
         placeholder={placeholder}
         placeholderTextColor="#aaa"
         multiline
-        maxLength={1000}
+        maxLength={700}
         returnKeyType="default"
       />
       <View style={styles.sendWrap}>

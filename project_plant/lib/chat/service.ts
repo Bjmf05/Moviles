@@ -1,6 +1,6 @@
 import { ChatMessage, ChatUser } from "./types";
 
-const BASE_URL = process.env.EXPO_PUBLIC_CHAT_APP ?? "";
+const BASE_URL = process.env.EXPO_PUBLIC_CHAT_BACKEND ?? "";
 
 async function chatFetch<T>(
   path: string,
@@ -11,7 +11,7 @@ async function chatFetch<T>(
   };
 
   if (options.token) {
-    headers["X-User-Token"] = options.token;
+    headers["Authorization"] = `Bearer ${options.token}`;
   }
 
   const response = await fetch(`${BASE_URL}${path}`, {
@@ -48,4 +48,11 @@ export const chatApi = {
 
   getDMHistory: (userId: string, token: string) =>
     chatFetch<ChatMessage[]>(`/api/chat/messages/dm/${userId}`, { token }),
+
+  registerPublicKey: (token: string, publicKey: string) =>
+    chatFetch<{ status: string }>("/api/chat/users/me/public-key", {
+      method: "PUT",
+      body: { public_key: publicKey },
+      token,
+    }),
 };

@@ -44,56 +44,57 @@ export default function ChatInbox() {
         onLeave={leaveChat}
       />
 
-      {data.length <= 1 && dmUsers.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyIcon}>🌱</Text>
-          <Text style={styles.emptyTitle}>No hay usuarios conectados</Text>
-          <Text style={styles.emptySub}>
-            Espera a que alguien mas se una al chat.
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={data}
-          keyExtractor={(item) =>
-            item.type === "group" ? "group" : item.user.id
-          }
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => {
-            if (item.type === "group") {
-              return (
-                <ConversationItem
-                  title="Grupo de Moviles"
-                  subtitle={
-                    lastGroupMsg
-                      ? lastGroupMsg.content
-                      : "Sin mensajes aun"
-                  }
-                  lastMessage={lastGroupMsg}
-                  isGroup
-                  onlineCount={onlineUsers.length}
-                  onPress={() => navigateTo("group")}
-                />
-              );
-            }
+      <FlatList
+        data={data}
+        keyExtractor={(item) =>
+          item.type === "group" ? "group" : item.user.id
+        }
+        contentContainerStyle={styles.list}
+        ListFooterComponent={
+          dmUsers.length === 0 ? (
+            <View style={styles.empty}>
+              <Text style={styles.emptyIcon}>🌱</Text>
+              <Text style={styles.emptyTitle}>No hay usuarios conectados</Text>
+              <Text style={styles.emptySub}>
+                Espera a que alguien mas se una al chat.
+              </Text>
+            </View>
+          ) : null
+        }
+        renderItem={({ item }) => {
+          if (item.type === "group") {
             return (
               <ConversationItem
-                title={item.user.nickname}
-                subtitle={getDMSubtitle(item.user.id)}
-                lastMessage={getLastDM(item.user.id)}
-                onPress={() =>
-                  navigateTo({
-                    dm: {
-                      userId: item.user.id,
-                      nickname: item.user.nickname,
-                    },
-                  })
+                title="Grupo de Moviles"
+                subtitle={
+                  lastGroupMsg
+                    ? lastGroupMsg.content
+                    : "Sin mensajes aun"
                 }
+                lastMessage={lastGroupMsg}
+                isGroup
+                onlineCount={onlineUsers.length}
+                onPress={() => navigateTo("group")}
               />
             );
-          }}
-        />
-      )}
+          }
+          return (
+            <ConversationItem
+              title={item.user.nickname}
+              subtitle={getDMSubtitle(item.user.id)}
+              lastMessage={getLastDM(item.user.id)}
+              onPress={() =>
+                navigateTo({
+                  dm: {
+                    userId: item.user.id,
+                    nickname: item.user.nickname,
+                  },
+                })
+              }
+            />
+          );
+        }}
+      />
     </View>
   );
 }
