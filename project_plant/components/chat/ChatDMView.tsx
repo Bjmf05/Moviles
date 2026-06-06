@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   Keyboard,
   Pressable,
@@ -22,15 +22,19 @@ export default function ChatDMView({ userId, nickname }: Props) {
   const {
     currentUser,
     directMessages,
+    messageReadStatus,
+    connectionState,
+    reconnectProgress,
     sendDirectMessage,
     loadDirectMessages,
+    uploadAndSendMedia,
     navigateTo,
   } = useChat();
 
   const scrollRef = useRef<ScrollView>(null);
   const keyboardHeight = useChatKeyboard();
 
-  const messages = directMessages[userId] || [];
+  const messages = useMemo(() => directMessages[userId] || [], [directMessages, userId]);
 
   useEffect(() => {
     loadDirectMessages(userId);
@@ -46,6 +50,9 @@ export default function ChatDMView({ userId, nickname }: Props) {
     sendDirectMessage(userId, content);
   };
 
+  const handleSendMedia = (fileUri: string, fileName: string, mimeType: string) =>
+    uploadAndSendMedia(fileUri, fileName, mimeType, "dm", userId);
+
   return (
     <View style={[styles.container, { paddingBottom: keyboardHeight }]}>
       <ChatHeader
@@ -53,6 +60,8 @@ export default function ChatDMView({ userId, nickname }: Props) {
         subtitle="Chat privado"
         showBack
         onBack={() => navigateTo("inbox")}
+        connectionState={connectionState}
+        reconnectProgress={reconnectProgress}
       />
 
       {messages.length === 0 ? (
@@ -77,6 +86,7 @@ export default function ChatDMView({ userId, nickname }: Props) {
               key={msg.id}
               message={msg}
               isOwn={msg.sender_id === currentUser?.id}
+              readStatus={msg.sender_id === currentUser?.id ? messageReadStatus[msg.id] : undefined}
             />
           ))}
         </ScrollView>
@@ -85,6 +95,7 @@ export default function ChatDMView({ userId, nickname }: Props) {
       <ChatComposer
         placeholder={`Escribe a ${nickname}...`}
         onSend={handleSend}
+        onSendMedia={handleSendMedia}
       />
     </View>
   );

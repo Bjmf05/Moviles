@@ -1,6 +1,6 @@
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { ChatProvider, useChat } from "../../context/ChatContext";
+import { useChat } from "../../context/ChatContext";
 import ChatJoinView from "./ChatJoinView";
 import ChatInbox from "./ChatInbox";
 import ChatGroupView from "./ChatGroupView";
@@ -40,7 +40,7 @@ interface Props {
   onClose: () => void;
 }
 
-function ChatModalInner({ visible, onClose }: Props) {
+export default function ChatModal({ visible, onClose }: Props) {
   return (
     <Modal
       visible={visible}
@@ -55,17 +55,10 @@ function ChatModalInner({ visible, onClose }: Props) {
         />
         <View style={styles.circle1} />
         <View style={styles.circle2} />
-        <ChatProvider>
-          <ChatContent />
-        </ChatProvider>
+        {visible ? <ChatContent /> : null}
       </View>
     </Modal>
   );
-}
-
-export default function ChatModal({ visible, onClose }: Props) {
-  if (!visible) return null;
-  return <ChatModalInner visible={visible} onClose={onClose} />;
 }
 
 const styles = StyleSheet.create({

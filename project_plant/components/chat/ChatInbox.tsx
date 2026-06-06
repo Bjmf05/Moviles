@@ -9,6 +9,8 @@ export default function ChatInbox() {
     onlineUsers,
     directMessages,
     groupMessages,
+    connectionState,
+    reconnectProgress,
     navigateTo,
     leaveChat,
   } = useChat();
@@ -42,6 +44,8 @@ export default function ChatInbox() {
         subtitle={`${onlineUsers.length} usuarios conectados`}
         showLeave
         onLeave={leaveChat}
+        connectionState={connectionState}
+        reconnectProgress={reconnectProgress}
       />
 
       <FlatList

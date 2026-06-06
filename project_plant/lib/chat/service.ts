@@ -1,4 +1,4 @@
-import { ChatMessage, ChatUser } from "./types";
+import { ChatMessage, ChatUser, MediaAttachment } from "./types";
 
 const BASE_URL = process.env.EXPO_PUBLIC_CHAT_BACKEND ?? "";
 
@@ -40,6 +40,12 @@ export const chatApi = {
       body: { nickname },
     }),
 
+  logout: (token: string) =>
+    chatFetch<{ status: string }>("/api/chat/logout", {
+      method: "POST",
+      token,
+    }),
+
   getOnlineUsers: () =>
     chatFetch<ChatUser[]>("/api/chat/users"),
 
@@ -55,4 +61,40 @@ export const chatApi = {
       body: { public_key: publicKey },
       token,
     }),
+
+  uploadMedia: async (
+    token: string,
+    fileUri: string,
+    fileName: string,
+    mimeType: string,
+  ): Promise<MediaAttachment> => {
+    const formData = new FormData();
+    formData.append("file", {
+      uri: fileUri,
+      name: fileName,
+      type: mimeType,
+    } as any);
+
+    const response = await fetch(`${BASE_URL}/api/chat/media/upload`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const detail = errorData?.detail;
+      const message =
+        typeof detail === "string"
+          ? detail
+          : detail?.message ?? "Error al subir archivo";
+      throw new Error(message);
+    }
+
+    return response.json();
+  },
 };
+
+

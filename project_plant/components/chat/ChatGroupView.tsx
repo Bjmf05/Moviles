@@ -18,7 +18,11 @@ export default function ChatGroupView() {
     currentUser,
     onlineUsers,
     groupMessages,
+    messageReadStatus,
+    connectionState,
+    reconnectProgress,
     sendGroupMessage,
+    uploadAndSendMedia,
     navigateTo,
   } = useChat();
 
@@ -38,6 +42,8 @@ export default function ChatGroupView() {
         subtitle={`${onlineUsers.length} usuarios conectados`}
         showBack
         onBack={() => navigateTo("inbox")}
+        connectionState={connectionState}
+        reconnectProgress={reconnectProgress}
       />
 
       {groupMessages.length === 0 ? (
@@ -62,6 +68,7 @@ export default function ChatGroupView() {
               key={msg.id}
               message={msg}
               isOwn={msg.sender_id === currentUser?.id}
+              readStatus={msg.sender_id === currentUser?.id ? messageReadStatus[msg.id] : undefined}
             />
           ))}
         </ScrollView>
@@ -70,6 +77,9 @@ export default function ChatGroupView() {
       <ChatComposer
         placeholder="Escribe un mensaje al grupo..."
         onSend={sendGroupMessage}
+        onSendMedia={(fileUri, fileName, mimeType) =>
+          uploadAndSendMedia(fileUri, fileName, mimeType, "group")
+        }
       />
     </View>
   );

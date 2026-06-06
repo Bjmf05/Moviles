@@ -5,8 +5,8 @@ export interface MediaAttachment {
   format: string;
   size_bytes: number;
   original_filename: string;
-  width: number;
-  height: number;
+  width: number | null;
+  height: number | null;
   duration: number | null;
 }
 
@@ -32,6 +32,17 @@ export interface ChatUser {
   public_key: string | null;
 }
 
+export interface MessageSeenInfo {
+  seen_by: string;
+  seen_at: string;
+}
+
+export interface SendMessageOptions {
+  ttl?: number;
+  allow_read_receipt?: boolean;
+  media?: MediaAttachment;
+}
+
 export type WsEvent =
   | { type: "group_message"; message: ChatMessage }
   | { type: "dm"; message: ChatMessage }
@@ -46,8 +57,8 @@ export type WsEvent =
   | { type: "error"; message: string };
 
 export type WsClientEvent =
-  | { type: "group_message"; content: string }
-  | { type: "dm"; to: string; content: string }
+  | { type: "group_message"; content: string; ttl?: number; allow_read_receipt?: boolean; media?: MediaAttachment }
+  | { type: "dm"; to: string; content: string; ttl?: number; allow_read_receipt?: boolean; media?: MediaAttachment }
   | { type: "mark_read"; message_id: string }
   | { type: "ping" };
 

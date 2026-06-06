@@ -20,9 +20,6 @@ export default function ConversationItem({
   onPress,
 }: Props) {
   const initial = title.charAt(0).toUpperCase();
-  const isOwn = !!(
-    lastMessage && lastMessage.type === "dm" && lastMessage.sender_id === "" // will be handled by caller
-  );
 
   return (
     <Pressable style={styles.row} onPress={onPress}>

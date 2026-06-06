@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Tabs } from "expo-router";
 import { Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ChatProvider } from "../../context/ChatContext";
 import ChatFab from "../../components/chat/ChatFab";
 import ChatModal from "../../components/chat/ChatModal";
 
@@ -16,8 +17,9 @@ export default function TabLayout() {
   const [chatVisible, setChatVisible] = useState(false);
 
   return (
-    <View style={{ flex: 1 }}>
-      <Tabs
+    <ChatProvider>
+      <View style={{ flex: 1 }}>
+        <Tabs
         screenOptions={{
           headerShown: false,
           tabBarStyle: {
@@ -72,5 +74,6 @@ export default function TabLayout() {
       {!chatVisible && <ChatFab onPress={() => setChatVisible(true)} />}
       <ChatModal visible={chatVisible} onClose={() => setChatVisible(false)} />
     </View>
+    </ChatProvider>
   );
 }
