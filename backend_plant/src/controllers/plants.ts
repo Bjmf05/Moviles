@@ -104,7 +104,6 @@ export async function createPlant(req: Request, res: Response): Promise<void> {
 
     const db = getFirestore();
 
-    // Fetch owner photo from user profile
     let ownerPhoto = "";
     try {
       const userDoc = await db.collection("users").doc(uid).get();
@@ -299,7 +298,6 @@ export async function getExplorePlants(
       ...doc.data(),
     }));
 
-    // Apply search filter in-memory
     if (search) {
       plants = plants.filter(
         (p) =>
